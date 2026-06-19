@@ -146,3 +146,10 @@ target_link_libraries(boltzcpp_fold PRIVATE boltzcpp)
 add_test(NAME fold_example_1brs
     COMMAND boltzcpp_fold ${CMAKE_CURRENT_SOURCE_DIR}/../example/inverse_folding/1brs.cif A
             --out ${CMAKE_CURRENT_BINARY_DIR}/fold_out.cif)
+
+# --- design-style demonstration (real featurizers + trunk + diffusion) -------
+add_executable(boltzcpp_design src/design_demo.cpp)
+target_link_libraries(boltzcpp_design PRIVATE boltzcpp)
+add_test(NAME design_example_1brs
+    COMMAND boltzcpp_design ${CMAKE_CURRENT_SOURCE_DIR}/../example/inverse_folding/1brs.cif A
+            --out ${CMAKE_CURRENT_BINARY_DIR}/design_out.cif)
