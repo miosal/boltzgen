@@ -159,4 +159,55 @@ MLPAttnGNNState mlp_attn_gnn_forward(const MLPAttnGNNWeights& w, int num_nodes,
     return {std::move(s), std::move(z)};
 }
 
+std::vector<float> linear_batch(const Linear& L, const std::vector<float>& x, int rows) {
+    return dense_stack(x, rows, L.in, {{&L, false}});
+}
+
+std::vector<float> mlp_attn_gnn_decoder_forward(const MLPAttnGNNWeights& w, int num_nodes,
+                                                const std::vector<float>& s_in,
+                                                const std::vector<float>& nbr,
+                                                const std::vector<int>& src,
+                                                const std::vector<int>& dst,
+                                                int neighbor_dim) {
+    const int node = w.node_dim, heads = w.num_heads;
+    const int E = static_cast<int>(src.size());
+
+    std::vector<float> s = s_in;  // [N, node]
+    const std::vector<float> s_dst = gather(s, node, dst);  // [E, node] (current s)
+
+    // attn_weight = attn_weight_mlp(cat[s[dst], nbr]) -> [E, heads]
+    auto aw_in = concat_rows(E, {{&s_dst, node}, {&nbr, neighbor_dim}});
+    auto attn_weight = dense_stack(aw_in, E, node + neighbor_dim,
+                                   {{&w.aw_l1, true}, {&w.aw_l2, true}, {&w.aw_l3, false}});
+
+    // attn_value = attn_value_mlp(nbr) -> [E, node]
+    auto attn_value = dense_stack(nbr, E, neighbor_dim,
+                                  {{&w.av_l1, true}, {&w.av_l2, true}, {&w.av_l3, false}});
+
+    attn_weight = scatter_softmax(attn_weight, E, heads, dst, num_nodes);
+
+    std::vector<float> attn_output((size_t)E * heads * node);
+    for (int e = 0; e < E; ++e)
+        for (int h = 0; h < heads; ++h)
+            for (int c = 0; c < node; ++c)
+                attn_output[e * heads * node + h * node + c] =
+                    attn_weight[e * heads + h] * attn_value[e * node + c];
+
+    auto agg = scatter_sum(attn_output, E, heads * node, dst, num_nodes);  // [N, heads*node]
+
+    // s = s + BN(out_linear(agg))
+    {
+        auto out = dense_stack(agg, num_nodes, heads * node, {{&w.out_l, false}});
+        apply_affine(out, num_nodes, node, w.out_bn);
+        for (int i = 0; i < num_nodes * node; ++i) s[i] += out[i];
+    }
+    // s = s + BN(FFN(s))
+    {
+        auto out = dense_stack(s, num_nodes, node, {{&w.ffn_l1, true}, {&w.ffn_l2, false}});
+        apply_affine(out, num_nodes, node, w.ffn_bn);
+        for (int i = 0; i < num_nodes * node; ++i) s[i] += out[i];
+    }
+    return s;
+}
+
 }  // namespace boltz

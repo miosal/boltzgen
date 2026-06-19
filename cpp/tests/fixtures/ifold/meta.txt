@@ -1,0 +1,12 @@
+N=24
+K=12
+E=288
+node_dim=128
+pair_dim=128
+token_s=384
+edge_in=332
+num_heads=4
+n_enc=6
+n_dec=3
+num_tokens=33
+seed=0

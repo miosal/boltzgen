@@ -20,9 +20,49 @@ Usage:
 """
 
 import argparse
+import pickle
 import sys
 
 from gguf_writer import GGUFWriter
+
+
+def _safe_torch_load(path):
+    """Load a checkpoint's tensors even if non-tensor objects in it reference
+    modules that aren't importable here (e.g. omegaconf / boltzgen configs in
+    `hyper_parameters`). We only need the float tensors, so unresolvable classes
+    are replaced by inert stand-ins while torch's own tensor-storage handling is
+    left intact."""
+    import torch
+
+    try:
+        return torch.load(path, map_location="cpu", weights_only=False)
+    except ModuleNotFoundError as e:
+        print(f"note: {e}; retrying with a permissive unpickler", file=sys.stderr)
+
+    class _Stub:
+        def __init__(self, *a, **k):
+            pass
+
+        def __setstate__(self, s):
+            if isinstance(s, dict):
+                self.__dict__.update(s)
+
+        def __reduce__(self):
+            return (_Stub, ())
+
+    class _SafeUnpickler(pickle.Unpickler):
+        def find_class(self, module, name):
+            try:
+                return super().find_class(module, name)
+            except (ModuleNotFoundError, AttributeError, ImportError):
+                return type(name, (_Stub,), {})
+
+    class _pickle_mod:
+        Unpickler = _SafeUnpickler
+        load = staticmethod(pickle.load)
+
+    return torch.load(path, map_location="cpu", weights_only=False,
+                      pickle_module=_pickle_mod)
 
 
 def _extract_state_dict(ckpt, use_ema):
@@ -55,25 +95,55 @@ def main():
 
     import torch  # imported lazily so format-only usage needs no torch
 
-    ckpt = torch.load(args.ckpt, map_location="cpu", weights_only=False)
+    ckpt = _safe_torch_load(args.ckpt)
     sd = _extract_state_dict(ckpt, args.ema)
 
     w = GGUFWriter()
     w.add_str("general.architecture", args.arch)
 
+    # ggml caps tensor names at GGML_MAX_NAME (64). The verbatim PyTorch keys can
+    # exceed that, so for the inverse-fold arch we shorten the two GNN prefixes
+    # (which the C++ engine reads) and drop the upstream input_embedder.* tensors
+    # (not used by the C++ inverse-fold encoder/decoder, and too deeply nested to
+    # fit the name limit). The renames keep every emitted name < 64 chars.
+    def transform(name: str):
+        if args.arch == "boltzgen-ifold":
+            if name.startswith("input_embedder."):
+                return None  # unused by the C++ ifold path
+            if name.startswith("inverse_folding_encoder."):
+                name = "enc." + name[len("inverse_folding_encoder."):]
+            elif name.startswith("structure_module."):
+                name = "dec." + name[len("structure_module."):]
+        return name
+
     n_written = 0
     n_skipped = 0
+    n_dropped = 0
+    too_long = []
     for name, t in sd.items():
         if not torch.is_tensor(t) or not torch.is_floating_point(t):
             n_skipped += 1
             continue
+        out_name = transform(name)
+        if out_name is None:
+            n_dropped += 1
+            continue
+        if len(out_name) >= 64:
+            too_long.append(out_name)
+            continue
         t = t.detach().to(torch.float32).contiguous()
         ne_dims = list(reversed(list(t.shape))) if t.dim() > 0 else [1]
-        w.add_tensor(name, ne_dims, t.view(-1).tolist())
+        w.add_tensor(out_name, ne_dims, t.view(-1).tolist())
         n_written += 1
 
+    if too_long:
+        raise SystemExit(
+            f"{len(too_long)} tensor name(s) exceed ggml's 64-char limit, e.g. "
+            f"'{too_long[0]}' ({len(too_long[0])} chars). Add a rename rule.")
+
     w.write(args.out)
-    print(f"wrote {n_written} tensors to {args.out} (skipped {n_skipped} non-float)")
+    print(f"wrote {n_written} tensors to {args.out} "
+          f"(skipped {n_skipped} non-float, dropped {n_dropped} unused)")
 
 
 if __name__ == "__main__":

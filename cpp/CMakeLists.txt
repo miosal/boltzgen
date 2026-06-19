@@ -48,6 +48,7 @@ add_library(boltzcpp STATIC
     src/gnn_layer.cpp
     src/cif.cpp
     src/ifold_model.cpp
+    src/ifold_real.cpp
     src/triangle_mult.cpp
     src/attention_pair_bias.cpp
     src/outer_product_mean.cpp
@@ -118,6 +119,16 @@ boltz_add_test(test_conformer)
 boltz_add_test(test_npy)
 boltz_add_test(test_confidence)
 boltz_add_test(test_affinity)
+boltz_add_test(test_parity)
+
+# Numeric parity vs the PyTorch reference on REAL trained weights. The gguf +
+# golden fixtures are derived from a HuggingFace-gated checkpoint and are not
+# committed; when absent the test skips. Regenerate into the build dir with:
+#   python3 tools/convert_ckpt_to_gguf.py <ckpt> ${BUILD}/boltzgen1_ifold.gguf --arch boltzgen-ifold
+#   python3 tools/dump_golden.py <ckpt> ${BUILD}/golden_ifold
+target_compile_definitions(test_parity PRIVATE
+    BOLTZ_PARITY_GGUF="${CMAKE_CURRENT_BINARY_DIR}/boltzgen1_ifold.gguf"
+    BOLTZ_PARITY_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ifold")
 
 # Cross-language test needs to know where the python tools live.
 target_compile_definitions(test_python_gguf PRIVATE

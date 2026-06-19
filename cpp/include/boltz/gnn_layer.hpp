@@ -64,4 +64,20 @@ MLPAttnGNNState mlp_attn_gnn_forward(const MLPAttnGNNWeights& w, int num_nodes,
                                      const std::vector<int>& src,
                                      const std::vector<int>& dst);
 
+// Apply a single Linear to `rows` input vectors (x is [rows*L.in] row-major).
+// Returns [rows*L.out]. Runs as one ggml matmul+bias graph, matching the MLP path.
+std::vector<float> linear_batch(const Linear& L, const std::vector<float>& x, int rows);
+
+// One MLPAttnGNNDecoder forward (boltzgen.model.modules.inverse_fold
+// .MLPAttnGNNDecoder). Unlike the encoder layer there is no edge_FFN and the
+// edge tensor `nbr` (the decoder's "neighbors_rep", width `neighbor_dim`) is not
+// updated. `s` is [num_nodes*node], `nbr` is [E*neighbor_dim]. Returns the
+// updated [num_nodes*node] node features.
+std::vector<float> mlp_attn_gnn_decoder_forward(const MLPAttnGNNWeights& w, int num_nodes,
+                                                const std::vector<float>& s,
+                                                const std::vector<float>& nbr,
+                                                const std::vector<int>& src,
+                                                const std::vector<int>& dst,
+                                                int neighbor_dim);
+
 }  // namespace boltz
