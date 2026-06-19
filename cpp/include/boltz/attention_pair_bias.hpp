@@ -35,4 +35,14 @@ std::vector<float> attention_pair_bias(const std::vector<float>& s,
                                        const std::vector<float>& mask, int N,
                                        const AttnPairBiasWeights& w);
 
+// Cross-attention variant: queries from q_src [Nq*c_s], keys/values from kv_src
+// [Nk*c_s]. bias/z is [Nq*Nk*(c_z|num_heads)], mask is [Nq*Nk] (key mask per
+// query). Returns [Nq*c_s]. The gate uses q_src. This is the mechanism behind
+// the windowed atom attention (queries = window, keys = gathered H-block).
+std::vector<float> attention_pair_bias_cross(const std::vector<float>& q_src,
+                                             const std::vector<float>& kv_src,
+                                             const std::vector<float>& z,
+                                             const std::vector<float>& mask, int Nq, int Nk,
+                                             const AttnPairBiasWeights& w);
+
 }  // namespace boltz
