@@ -6,7 +6,7 @@ analytic values) on the ggml CPU backend. No trained weights are present in the
 build environment, so nothing here is yet checked for *numeric parity with the
 real model* — that requires the checkpoints (see "Blockers").
 
-## Test suites (15 ctest cases, all passing)
+## Test suites (18 ctest cases, all passing)
 Run: `cmake -S cpp -B cpp/build && cmake --build cpp/build && ctest --test-dir cpp/build`
 
 ## Component map
@@ -35,7 +35,7 @@ Run: `cmake -S cpp -B cpp/build && cmake --build cpp/build && ctest --test-dir c
 | Diffusion module (atom enc/dec, diffusion transformer) + sampler loop | partial (`diffusion_schedule`) | ❌ network not ported |
 | Confidence / Affinity heads | — | ❌ |
 | Full atom featurizer (tokenizer, atom feats, distogram, MSA) | partial (`cif`, `gaussian_smearing`) | ❌ |
-| mmCIF writer (output) | — | ❌ |
+| mmCIF writer (output) | `mmcif_writer` | ✅ validated (write→parse round-trip) |
 | Design / folding / affinity end-to-end | — | ❌ |
 
 ## What "runs" today
