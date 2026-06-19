@@ -26,6 +26,24 @@ void center(std::vector<float>& coords, int M, const std::vector<float>& mask) {
 
 }  // namespace
 
+std::vector<float> preconditioned_forward(
+    const std::vector<float>& coords_noisy, double sigma, const DiffusionSchedule& sched,
+    const std::function<std::vector<float>(const std::vector<float>&, double)>& net) {
+    const double c_in = sched.c_in(sigma);
+    const double c_skip = sched.c_skip(sigma);
+    const double c_out = sched.c_out(sigma);
+    const double t = sched.c_noise(sigma);
+
+    std::vector<float> scaled(coords_noisy.size());
+    for (size_t i = 0; i < scaled.size(); ++i) scaled[i] = static_cast<float>(c_in * coords_noisy[i]);
+
+    std::vector<float> r = net(scaled, t);
+    std::vector<float> denoised(coords_noisy.size());
+    for (size_t i = 0; i < denoised.size(); ++i)
+        denoised[i] = static_cast<float>(c_skip * coords_noisy[i] + c_out * r[i]);
+    return denoised;
+}
+
 std::vector<float> sample_diffusion(
     const std::vector<double>& sigmas, int M, const std::vector<float>& mask,
     const std::function<std::vector<float>(const std::vector<float>&, double)>& denoise,

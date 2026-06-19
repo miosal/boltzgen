@@ -63,6 +63,30 @@ BOLTZ_TEST(sampler_runs_with_noise_and_finite) {
     for (float v : coords) expect_true(std::isfinite(v), "finite output");
 }
 
+BOLTZ_TEST(preconditioned_forward_matches_formula) {
+    DiffusionSchedule sched(DiffusionScheduleConfig{});
+    const double sigma = 5.0;
+    std::vector<float> x = {1.0f, -2.0f, 0.5f};
+    std::vector<float> r = {0.3f, 0.4f, -0.1f};  // network output (constant)
+
+    double captured_t = -1;
+    auto net = [&](const std::vector<float>& scaled, double t) {
+        captured_t = t;
+        // verify the input was scaled by c_in
+        for (size_t i = 0; i < scaled.size(); ++i)
+            if (std::fabs(scaled[i] - static_cast<float>(sched.c_in(sigma) * x[i])) > 1e-5f)
+                throw AssertFailure("input not scaled by c_in");
+        return r;
+    };
+
+    auto den = preconditioned_forward(x, sigma, sched, net);
+    expect_eq_f(static_cast<float>(captured_t), static_cast<float>(sched.c_noise(sigma)), "c_noise time");
+    for (size_t i = 0; i < x.size(); ++i) {
+        float ref = static_cast<float>(sched.c_skip(sigma) * x[i] + sched.c_out(sigma) * r[i]);
+        expect_eq_f(den[i], ref, "denoised");
+    }
+}
+
 int main() {
     std::printf("== test_diffusion_sampler ==\n");
     return boltztest::run_all();

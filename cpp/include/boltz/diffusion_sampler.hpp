@@ -5,10 +5,19 @@
 // (B=1); coordinates are [M, 3] row-major.
 #pragma once
 
+#include "boltz/diffusion_schedule.hpp"
+
 #include <functional>
 #include <vector>
 
 namespace boltz {
+
+// Karras preconditioned network forward (AtomDiffusion.preconditioned_network_forward):
+//   denoised = c_skip(sigma)*x_noisy + c_out(sigma) * net(c_in(sigma)*x_noisy, c_noise(sigma))
+// `net(scaled_coords, t)` is the raw score model returning the coordinate update.
+std::vector<float> preconditioned_forward(
+    const std::vector<float>& coords_noisy, double sigma, const DiffusionSchedule& sched,
+    const std::function<std::vector<float>(const std::vector<float>&, double)>& net);
 
 struct SamplerParams {
     double gamma_0 = 0.8;
