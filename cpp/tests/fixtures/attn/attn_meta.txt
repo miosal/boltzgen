@@ -1,0 +1,6 @@
+N=10
+c_s=384
+c_z=128
+num_heads=16
+prefix=pairformer_module.layers.0.attention.
+seed=0

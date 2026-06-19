@@ -126,6 +126,46 @@ def dump_trimul(args, sd):
     print(f"  outgoing: std={y_out.std():.4f}  incoming: std={y_in.std():.4f}")
 
 
+def dump_attn(args, sd):
+    """Golden tensors for the Pairformer pair-bias attention kernel
+    (boltzgen.model.layers.attention.AttentionPairBias) from a design/folding
+    block, on real trained weights. Uses an all-valid mask so the (B,N) key-mask
+    broadcast is neutralised and the core attention+bias+gate+proj is what's
+    compared (the C++ counterpart is boltz::attention_pair_bias)."""
+    import torch
+    from boltzgen.model.layers.attention import AttentionPairBias
+
+    base = args.trimul_prefix + "attention."
+    a_sd = _subdict(sd, base)
+    if not a_sd:
+        raise SystemExit(f"no tensors under '{base}' in checkpoint")
+    c_s = a_sd["proj_q.weight"].shape[0]
+    num_heads, c_z = a_sd["proj_z.1.weight"].shape  # [num_heads, c_z]
+    print(f"attn: c_s={c_s} c_z={c_z} num_heads={num_heads} prefix='{base}'")
+
+    attn = AttentionPairBias(c_s=c_s, c_z=c_z, num_heads=num_heads,
+                             compute_pair_bias=True, use_qk_norm=False)
+    attn.load_state_dict(a_sd, strict=True)
+    attn.eval()
+
+    torch.manual_seed(args.seed)
+    N = args.n
+    s = torch.randn(1, N, c_s)
+    z = torch.randn(1, N, N, c_z)
+    mask = torch.ones(1, N)  # all-valid keys
+    with torch.no_grad():
+        out = attn(s, z, mask, k_in=s)
+
+    _dump(args.out_dir, "attn_s", s[0])           # [N, c_s]
+    _dump(args.out_dir, "attn_z", z[0])           # [N, N, c_z]
+    _dump(args.out_dir, "attn_out", out[0])       # [N, c_s]
+    with open(os.path.join(args.out_dir, "attn_meta.txt"), "w") as f:
+        f.write(f"N={N}\nc_s={c_s}\nc_z={c_z}\nnum_heads={num_heads}\n"
+                f"prefix={base}\nseed={args.seed}\n")
+    print(f"wrote attn fixtures to {args.out_dir} (N={N}, c_s={c_s}, heads={num_heads})")
+    print(f"  out: mean={out.mean():.4f} std={out.std():.4f}")
+
+
 def dump_ifold(args, sd):
     import torch
     from boltzgen.model.modules.inverse_fold import (
@@ -234,7 +274,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("ckpt")
     ap.add_argument("out_dir")
-    ap.add_argument("--component", choices=["ifold", "trimul"], default="ifold",
+    ap.add_argument("--component", choices=["ifold", "trimul", "attn"], default="ifold",
                     help="which model component to dump golden tensors for")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--n", type=int, default=24,
@@ -253,8 +293,10 @@ def main():
 
     if args.component == "ifold":
         dump_ifold(args, sd)
-    else:
+    elif args.component == "trimul":
         dump_trimul(args, sd)
+    else:
+        dump_attn(args, sd)
 
 
 if __name__ == "__main__":

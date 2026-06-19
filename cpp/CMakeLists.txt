@@ -130,7 +130,8 @@ target_compile_definitions(test_parity PRIVATE
     BOLTZ_PARITY_GGUF="${CMAKE_CURRENT_BINARY_DIR}/boltzgen1_ifold.gguf"
     BOLTZ_PARITY_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ifold"
     BOLTZ_PARITY_DESIGN_GGUF="${CMAKE_CURRENT_BINARY_DIR}/boltzgen1_design_layer0.gguf"
-    BOLTZ_PARITY_TRIMUL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/trimul")
+    BOLTZ_PARITY_TRIMUL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/trimul"
+    BOLTZ_PARITY_ATTN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/attn")
 
 # Cross-language test needs to know where the python tools live.
 target_compile_definitions(test_python_gguf PRIVATE

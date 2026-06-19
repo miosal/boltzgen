@@ -13,6 +13,7 @@
 //       cpp/build/boltzgen1_ifold.gguf --arch boltzgen-ifold
 //   python3 cpp/tools/dump_golden.py boltzgen1_ifold.ckpt cpp/build/golden_ifold
 // If they are absent the test SKIPS (data-gated), like the other example tests.
+#include "boltz/attention_pair_bias.hpp"
 #include "boltz/ifold_real.hpp"
 #include "boltz/npy.hpp"
 #include "boltz/triangle_mult.hpp"
@@ -38,6 +39,9 @@ using namespace boltztest;
 #endif
 #ifndef BOLTZ_PARITY_TRIMUL_DIR
 #define BOLTZ_PARITY_TRIMUL_DIR "golden_trimul"
+#endif
+#ifndef BOLTZ_PARITY_ATTN_DIR
+#define BOLTZ_PARITY_ATTN_DIR "golden_attn"
 #endif
 
 namespace {
@@ -179,6 +183,59 @@ BOLTZ_TEST(trimul_real_weights_parity) {
     expect_true(do_.shapes_match && di_.shapes_match, "trimul shapes");
     expect_true(do_.max_abs < 2e-3f, "tri_mul outgoing parity (max_abs < 2e-3)");
     expect_true(di_.max_abs < 2e-3f, "tri_mul incoming parity (max_abs < 2e-3)");
+}
+
+namespace {
+AttnPairBiasWeights load_attn(const WeightStore& ws, const std::string& p) {
+    AttnPairBiasWeights w;
+    w.c_s = static_cast<int>(ws.get(p + "proj_q.weight")->ne[1]);
+    ggml_tensor* zl = ws.get(p + "proj_z.1.weight");  // ne=[c_z, num_heads]
+    w.c_z = static_cast<int>(zl->ne[0]);
+    w.num_heads = static_cast<int>(zl->ne[1]);
+    w.compute_pair_bias = true;
+    w.inf = 1e6f;
+    w.q_w = ws.data_f32(p + "proj_q.weight");
+    w.q_b = ws.data_f32(p + "proj_q.bias");
+    w.k_w = ws.data_f32(p + "proj_k.weight");
+    w.v_w = ws.data_f32(p + "proj_v.weight");
+    w.g_w = ws.data_f32(p + "proj_g.weight");
+    w.z_norm_w = ws.data_f32(p + "proj_z.0.weight");
+    w.z_norm_b = ws.data_f32(p + "proj_z.0.bias");
+    w.z_lin_w = ws.data_f32(p + "proj_z.1.weight");
+    w.o_w = ws.data_f32(p + "proj_o.weight");
+    return w;
+}
+}  // namespace
+
+// Pair-bias attention kernel parity on REAL design-checkpoint weights — the
+// single-rep attention used across the Pairformer trunk and diffusion
+// transformer. All-valid mask so the core attention+bias+gate+output-proj is
+// what's compared (the C++ counterpart is boltz::attention_pair_bias).
+BOLTZ_TEST(attn_pair_bias_real_weights_parity) {
+    const std::string gguf = BOLTZ_PARITY_DESIGN_GGUF;
+    const std::string dir = BOLTZ_PARITY_ATTN_DIR;
+    if (!file_exists(gguf) || !file_exists(dir + "/attn_s.npy")) {
+        std::printf("    (skip: data-gated — design gguf/fixtures absent; see header)\n");
+        return;
+    }
+    WeightStore ws(gguf);
+    AttnPairBiasWeights w = load_attn(ws, "pairformer_module.layers.0.attention.");
+    std::printf("    attn: c_s=%d c_z=%d heads=%d\n", w.c_s, w.c_z, w.num_heads);
+
+    NpyArray s = load_npy(dir + "/attn_s.npy");     // [N, c_s]
+    NpyArray z = load_npy(dir + "/attn_z.npy");     // [N, N, c_z]
+    NpyArray go = load_npy(dir + "/attn_out.npy");  // [N, c_s]
+    const int N = static_cast<int>(s.shape[0]);
+    std::vector<float> mask((size_t)N * N, 1.0f);   // all-valid
+
+    std::vector<float> out = attention_pair_bias(s.data, z.data, mask, N, w);
+    DiffStats d = compare(wrap(out, {N, w.c_s}), go);
+    float maxabs_ref = 0.0f;
+    for (float v : go.data) maxabs_ref = std::max(maxabs_ref, std::fabs(v));
+    std::printf("    attn out: max_abs=%.3e mean_abs=%.3e (ref max|v|=%.2f -> rel=%.2e)\n",
+                d.max_abs, d.mean_abs, maxabs_ref, d.max_abs / (maxabs_ref + 1e-9f));
+    expect_true(d.shapes_match, "attn out shape");
+    expect_true(d.max_abs < 5e-3f, "attn pair-bias parity (max_abs < 5e-3)");
 }
 
 int main() {

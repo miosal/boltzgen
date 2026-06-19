@@ -26,9 +26,12 @@ block extracted from the 2 GB design checkpoint (`boltzgen1_diverse.ckpt`, via
 `convert_ckpt_to_gguf.py --include pairformer_module.layers.0.`) and checks
 `boltz::triangle_multiplication` (outgoing + incoming) against the PyTorch
 `TriangleMultiplication{Outgoing,Incoming}` reference on the real weights:
-max_abs **4.3e-6 / 4.8e-6** (the scalar einsum path matches very tightly). This
-is the signature custom kernel shared by the design, folding and affinity trunks,
-so the convert→dump→parity flow is shown to extend to those checkpoints.
+max_abs **4.3e-6 / 4.8e-6** (the scalar einsum path matches very tightly). It
+also checks the **pair-bias attention** kernel (`AttentionPairBias`, c_s=384,
+16 heads) on the same block's real weights: max_abs **1.8e-4** on values up to 88
+(rel **2.1e-6**). These are the two signature custom kernels shared by the design,
+folding and affinity trunks, so the convert→dump→parity flow is shown to extend
+to those checkpoints.
 
 ## Test suites (37 ctest cases, all passing; 5 example pipelines run)
 Run: `cmake -S cpp -B cpp/build && cmake --build cpp/build && ctest --test-dir cpp/build`
@@ -50,6 +53,7 @@ Run: `cmake -S cpp -B cpp/build && cmake --build cpp/build && ctest --test-dir c
 | `.ckpt → .gguf` converter | `tools/convert_ckpt_to_gguf.py` | ✅ converts the real `boltzgen1_ifold.ckpt` (loads w/o omegaconf via a permissive unpickler; shortens names < ggml's 64-char limit; drops unused input_embedder) |
 | **Inverse-fold encoder+decoder, REAL trained weights** | `ifold_real` + `test_parity` | ✅ **numeric parity vs PyTorch** on `boltzgen1_ifold.ckpt` (see header for measured diffs; argmax exact) |
 | **Triangle multiplication (Pairformer trunk), REAL weights** | `triangle_mult` + `test_parity` | ✅ **numeric parity vs PyTorch** on `boltzgen1_diverse.ckpt` layer-0 tri_mul (max_abs ~4e-6, both directions) |
+| **Pair-bias attention (Pairformer trunk), REAL weights** | `attention_pair_bias` + `test_parity` | ✅ **numeric parity vs PyTorch** on `boltzgen1_diverse.ckpt` layer-0 attention (rel ~2e-6) |
 | mmCIF `_atom_site` read | `cif` | ✅ validated (parses real 1brs.cif) |
 | Inverse-folding model end-to-end (demo) | `ifold_model` + `boltzcpp_ifold` | ✅ runs on real example (`ifold_example_1brs`); **simplified** embedder + greedy head on synthetic weights (the real-weight path is `ifold_real`, above) |
 | `triangular.TriangleMultiplication` (out/in) | `triangle_mult` | ✅ validated (wiring); needs golden-tensor parity check |
@@ -104,12 +108,17 @@ python3 - <<'PY'                                         # fetch the checkpoint
 from huggingface_hub import hf_hub_download
 print(hf_hub_download("boltzgen/boltzgen-1","boltzgen1_ifold.ckpt",repo_type="model"))
 PY
-python3 cpp/tools/convert_ckpt_to_gguf.py <ckpt> cpp/build/boltzgen1_ifold.gguf --arch boltzgen-ifold
-python3 cpp/tools/dump_golden.py        <ckpt> cpp/tests/fixtures/ifold   # fixtures committed
+python3 cpp/tools/convert_ckpt_to_gguf.py <ifold_ckpt> cpp/build/boltzgen1_ifold.gguf --arch boltzgen-ifold
+python3 cpp/tools/dump_golden.py          <ifold_ckpt> cpp/tests/fixtures/ifold   # fixtures committed
+# (optional) trunk-kernel parity (triangle-mult + pair-bias attn) from the 2 GB design checkpoint:
+python3 cpp/tools/convert_ckpt_to_gguf.py <design_ckpt> cpp/build/boltzgen1_design_layer0.gguf \
+        --arch boltzgen-design --include pairformer_module.layers.0.
+python3 cpp/tools/dump_golden.py          <design_ckpt> cpp/tests/fixtures/trimul --component trimul --n 10
+python3 cpp/tools/dump_golden.py          <design_ckpt> cpp/tests/fixtures/attn   --component attn   --n 10
 cmake -S cpp -B cpp/build && cmake --build cpp/build -j && ctest --test-dir cpp/build -R test_parity
 ```
-The golden `.npy` fixtures are committed; the 12 MB gguf (derived from the gated
-checkpoint) is not — `test_parity` skips when it is absent, runs and asserts
+The golden `.npy` fixtures are committed; the gguf files (derived from the gated
+checkpoints) are not — `test_parity` skips when they are absent, runs and asserts
 parity when present.
 
 ## Remaining gaps
@@ -128,14 +137,14 @@ weights*, and for the other models:
    the larger InputEmbedder weight port, not new algorithms.)
 2. **Rest of the design/fold/affinity trunks.** `convert_ckpt_to_gguf.py` loads
    the real 2 GB Lightning checkpoints (`--include` extracts a component to keep
-   names < ggml's 64-char limit) and the triangle-multiplication kernel now has
-   trained-weight parity (above). Remaining for a full trunk: the same
-   convert→dump→parity wiring for triangle attention, pair-bias attention,
+   names < ggml's 64-char limit); the triangle-multiplication and pair-bias
+   attention kernels now have trained-weight parity (above). Remaining for a full
+   trunk: the same convert->dump->parity wiring for triangle attention,
    outer-product-mean and the transitions, then assembling the 64-block Pairformer
    + recycling + distogram head (and the diffusion/confidence/affinity heads). The
    ops are already written + unit-tested on synthetic weights; this is real-weight
    wiring + golden dumps + assembly, not new algorithms.
-2. **Real MSA database + CCD/mols data.** Also HF-only. The per-alignment MSA
+3. **Real MSA database + CCD/mols data.** Also HF-only. The per-alignment MSA
    featurization and ligand topology/conformer logic are written; pulling the
    reference *databases* is data-gated. The conformer generator is an
    approximate distance-geometry embedding, not bit-identical to RDKit ETKDGv3.
