@@ -65,6 +65,7 @@ add_library(boltzcpp STATIC
     src/input_embedder.cpp
     src/smiles.cpp
     src/conformer.cpp
+    src/npy.cpp
     src/confidence.cpp
     src/affinity.cpp
 )
@@ -114,6 +115,7 @@ boltz_add_test(test_atom_featurizer)
 boltz_add_test(test_input_embedder)
 boltz_add_test(test_smiles)
 boltz_add_test(test_conformer)
+boltz_add_test(test_npy)
 boltz_add_test(test_confidence)
 boltz_add_test(test_affinity)
 
@@ -164,3 +166,5 @@ target_link_libraries(boltzcpp_ligand PRIVATE boltzcpp)
 add_test(NAME ligand_example_aspirin
     COMMAND boltzcpp_ligand "CC(=O)Oc1ccccc1C(=O)O"
             --out ${CMAKE_CURRENT_BINARY_DIR}/ligand_out.cif)
+target_compile_definitions(test_npy PRIVATE
+    BOLTZ_TOOLS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tools")
