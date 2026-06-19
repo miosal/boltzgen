@@ -48,6 +48,7 @@ add_library(boltzcpp STATIC
     src/gnn_layer.cpp
     src/cif.cpp
     src/ifold_model.cpp
+    src/triangle_mult.cpp
 )
 target_include_directories(boltzcpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(boltzcpp PUBLIC ggml)
@@ -77,6 +78,7 @@ boltz_add_test(test_gnn_layer)
 boltz_add_test(test_python_gguf)
 boltz_add_test(test_cif)
 boltz_add_test(test_ifold)
+boltz_add_test(test_triangle_mult)
 
 # Cross-language test needs to know where the python tools live.
 target_compile_definitions(test_python_gguf PRIVATE
