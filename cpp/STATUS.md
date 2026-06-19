@@ -6,7 +6,7 @@ analytic values) on the ggml CPU backend. No trained weights are present in the
 build environment, so nothing here is yet checked for *numeric parity with the
 real model* — that requires the checkpoints (see "Blockers").
 
-## Test suites (23 ctest cases, all passing)
+## Test suites (24 ctest cases, all passing)
 Run: `cmake -S cpp -B cpp/build && cmake --build cpp/build && ctest --test-dir cpp/build`
 
 ## Component map
@@ -35,7 +35,8 @@ Run: `cmake -S cpp -B cpp/build && cmake --build cpp/build && ctest --test-dir c
 | MSA module | — | ❌ |
 | Diffusion transformer (AdaLN, conditioned transition, fourier) | `diffusion_transformer`, `diffusion_blocks` | ✅ validated |
 | Reverse-diffusion sampler loop (EDM/AF3) | `diffusion_sampler` | ✅ validated (oracle convergence) |
-| Atom attention encoder/decoder (windowed) | — | ❌ (windowed to_keys gather) |
+| Atom attention key-gather (single_to_keys) | `atom_windowing` | ✅ validated |
+| Atom attention encoder/decoder (full windowed cross-attn) | partial | ❌ |
 | Diffusion module end-to-end (score-net + sampler) | `test_diffusion_pipeline` | ✅ runs (linear atom embed/decode placeholders; synthetic weights) |
 | Confidence / Affinity heads | — | ❌ |
 | Full atom featurizer (tokenizer, atom feats, distogram, MSA) | partial (`cif`, `gaussian_smearing`) | ❌ |

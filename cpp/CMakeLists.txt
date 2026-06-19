@@ -58,6 +58,7 @@ add_library(boltzcpp STATIC
     src/diffusion_blocks.cpp
     src/diffusion_transformer.cpp
     src/diffusion_sampler.cpp
+    src/atom_windowing.cpp
 )
 target_include_directories(boltzcpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(boltzcpp PUBLIC ggml)
@@ -98,6 +99,7 @@ boltz_add_test(test_diffusion_blocks)
 boltz_add_test(test_diffusion_transformer)
 boltz_add_test(test_diffusion_sampler)
 boltz_add_test(test_diffusion_pipeline)
+boltz_add_test(test_atom_windowing)
 
 # Cross-language test needs to know where the python tools live.
 target_compile_definitions(test_python_gguf PRIVATE
