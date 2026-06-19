@@ -46,6 +46,7 @@ add_library(boltzcpp STATIC
     src/weight_store.cpp
     src/gnn.cpp
     src/gnn_layer.cpp
+    src/cif.cpp
 )
 target_include_directories(boltzcpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(boltzcpp PUBLIC ggml)
@@ -73,7 +74,10 @@ boltz_add_test(test_weight_store)
 boltz_add_test(test_gnn)
 boltz_add_test(test_gnn_layer)
 boltz_add_test(test_python_gguf)
+boltz_add_test(test_cif)
 
 # Cross-language test needs to know where the python tools live.
 target_compile_definitions(test_python_gguf PRIVATE
     BOLTZ_TOOLS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tools")
+target_compile_definitions(test_cif PRIVATE
+    BOLTZ_EXAMPLE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../example")
