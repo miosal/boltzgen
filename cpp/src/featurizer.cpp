@@ -42,6 +42,40 @@ MsaFeatures single_sequence_msa_features(const std::vector<float>& res_type, int
     return m;
 }
 
+MsaFeatures msa_features_from_alignment(const std::vector<std::vector<int>>& seq_tokens,
+                                        const std::vector<std::vector<float>>& deletions,
+                                        int n, int T) {
+    const int depth = static_cast<int>(seq_tokens.size());
+    MsaFeatures m;
+    m.n = n;
+    m.num_token_types = T;
+    m.depth = depth;
+    m.msa.assign((size_t)depth * n * T, 0.0f);
+    m.has_deletion.assign((size_t)depth * n, 0.0f);
+    m.deletion_value.assign((size_t)depth * n, 0.0f);
+    m.msa_mask.assign((size_t)depth * n, 1.0f);
+    m.profile.assign((size_t)n * T, 0.0f);
+
+    m.deletion_mean.assign(n, 0.0f);
+    for (int d = 0; d < depth; ++d) {
+        for (int c = 0; c < n; ++c) {
+            const int tok = seq_tokens[d][c];
+            m.msa[((size_t)d * n + c) * T + tok] = 1.0f;
+            m.profile[(size_t)c * T + tok] += 1.0f;  // accumulate counts
+            const float del = deletions[d][c];
+            m.has_deletion[(size_t)d * n + c] = del > 0 ? 1.0f : 0.0f;
+            m.deletion_value[(size_t)d * n + c] = del;
+            m.deletion_mean[c] += del;
+        }
+    }
+    // Normalize profile to column frequencies and deletion to per-column mean.
+    for (int c = 0; c < n; ++c) {
+        for (int t = 0; t < T; ++t) m.profile[(size_t)c * T + t] /= depth;
+        m.deletion_mean[c] /= depth;
+    }
+    return m;
+}
+
 Matrix gaussian_smearing(const std::vector<float>& dist, float start, float stop,
                          int num_gaussians) {
     std::vector<float> offsets(num_gaussians);

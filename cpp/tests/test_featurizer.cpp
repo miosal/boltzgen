@@ -82,6 +82,30 @@ BOLTZ_TEST(single_sequence_msa) {
     }
 }
 
+BOLTZ_TEST(msa_from_alignment_profile_and_deletions) {
+    // 3 sequences, 2 columns, small token vocab T (use 33 for consistency).
+    const int T = 33, n = 2, depth = 3;
+    // Column 0 tokens: [2,2,5]; column 1: [7,7,7].
+    std::vector<std::vector<int>> seqs = {{2, 7}, {2, 7}, {5, 7}};
+    std::vector<std::vector<float>> dels = {{0, 1}, {2, 0}, {0, 0}};
+    auto m = msa_features_from_alignment(seqs, dels, n, T);
+
+    expect_eq_i(m.depth, 3, "depth");
+    expect_eq_i(static_cast<long>(m.msa.size()), depth * n * T, "msa shape");
+    // Profile col0: token 2 freq 2/3, token 5 freq 1/3.
+    expect_eq_f(m.profile[0 * T + 2], 2.0f / 3.0f, "col0 tok2 freq");
+    expect_eq_f(m.profile[0 * T + 5], 1.0f / 3.0f, "col0 tok5 freq");
+    // Profile col1: token 7 freq 1.0.
+    expect_eq_f(m.profile[1 * T + 7], 1.0f, "col1 tok7 freq");
+    // Deletion mean: col0 = (0+2+0)/3, col1 = (1+0+0)/3.
+    expect_eq_f(m.deletion_mean[0], 2.0f / 3.0f, "col0 del mean");
+    expect_eq_f(m.deletion_mean[1], 1.0f / 3.0f, "col1 del mean");
+    // has_deletion flags.
+    expect_eq_f(m.has_deletion[0 * n + 1], 1.0f, "seq0 col1 has deletion");
+    expect_eq_f(m.has_deletion[1 * n + 0], 1.0f, "seq1 col0 has deletion");
+    expect_eq_f(m.has_deletion[2 * n + 0], 0.0f, "seq2 col0 no deletion");
+}
+
 int main() {
     std::printf("== test_featurizer ==\n");
     return boltztest::run_all();

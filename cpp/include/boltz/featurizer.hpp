@@ -43,7 +43,8 @@ struct MsaFeatures {
     int num_token_types = 0;
     int depth = 1;                  // one row (the query)
     std::vector<float> msa;          // [depth*n*num_token_types] one-hot
-    std::vector<float> profile;      // [n*num_token_types] (== query one-hot)
+    std::vector<float> profile;      // [n*num_token_types] (column token frequencies)
+    std::vector<float> deletion_mean; // [n] per-column mean deletion
     std::vector<float> has_deletion; // [depth*n] = 0
     std::vector<float> deletion_value; // [depth*n] = 0
     std::vector<float> msa_mask;     // [depth*n] = 1
@@ -52,6 +53,16 @@ struct MsaFeatures {
 // `res_type` is the [n*num_token_types] one-hot from token_features.
 MsaFeatures single_sequence_msa_features(const std::vector<float>& res_type, int n,
                                          int num_token_types);
+
+// Multi-sequence MSA featurization from an explicit alignment (the portable
+// per-alignment logic; obtaining the alignment from MSA database files +
+// taxonomy pairing is a separate, data-gated step). `seq_tokens[d][c]` is the
+// token id of sequence d at column c; `deletions[d][c]` the deletion count.
+// Produces the one-hot MSA, the column profile (token frequencies over the
+// alignment), and per-column mean deletion.
+MsaFeatures msa_features_from_alignment(const std::vector<std::vector<int>>& seq_tokens,
+                                        const std::vector<std::vector<float>>& deletions,
+                                        int n, int num_token_types);
 
 // Port of boltzgen.model.modules.inverse_fold.GaussianSmearing.
 // offsets = linspace(start, stop, num_gaussians);
