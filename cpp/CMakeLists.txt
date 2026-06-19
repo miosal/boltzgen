@@ -45,6 +45,7 @@ add_library(boltzcpp STATIC
     src/featurizer.cpp
     src/weight_store.cpp
     src/gnn.cpp
+    src/gnn_layer.cpp
 )
 target_include_directories(boltzcpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(boltzcpp PUBLIC ggml)
@@ -70,3 +71,4 @@ boltz_add_test(test_ggml_nn)
 boltz_add_test(test_featurizer)
 boltz_add_test(test_weight_store)
 boltz_add_test(test_gnn)
+boltz_add_test(test_gnn_layer)
