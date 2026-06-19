@@ -157,3 +157,10 @@ target_link_libraries(boltzcpp_design PRIVATE boltzcpp)
 add_test(NAME design_example_1brs
     COMMAND boltzcpp_design ${CMAKE_CURRENT_SOURCE_DIR}/../example/inverse_folding/1brs.cif A
             --out ${CMAKE_CURRENT_BINARY_DIR}/design_out.cif)
+
+# --- ligand featurization demo (SMILES -> conformer -> mmCIF) -----------------
+add_executable(boltzcpp_ligand src/ligand_demo.cpp)
+target_link_libraries(boltzcpp_ligand PRIVATE boltzcpp)
+add_test(NAME ligand_example_aspirin
+    COMMAND boltzcpp_ligand "CC(=O)Oc1ccccc1C(=O)O"
+            --out ${CMAKE_CURRENT_BINARY_DIR}/ligand_out.cif)
