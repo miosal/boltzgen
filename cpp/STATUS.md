@@ -6,7 +6,7 @@ analytic values) on the ggml CPU backend. No trained weights are present in the
 build environment, so nothing here is yet checked for *numeric parity with the
 real model* — that requires the checkpoints (see "Blockers").
 
-## Test suites (27 ctest cases, all passing)
+## Test suites (28 ctest cases, all passing)
 Run: `cmake -S cpp -B cpp/build && cmake --build cpp/build && ctest --test-dir cpp/build`
 
 ## Component map
@@ -42,7 +42,8 @@ Run: `cmake -S cpp -B cpp/build && cmake --build cpp/build && ctest --test-dir c
 | Affinity head (cross-pair pool + ReLU MLPs) | `affinity` | ✅ validated |
 | Full atom featurizer (tokenizer, atom feats, distogram, MSA) | partial (`cif`, `gaussian_smearing`) | ❌ |
 | mmCIF writer (output) | `mmcif_writer` | ✅ validated (write→parse round-trip) |
-| Design / folding / affinity end-to-end | — | ❌ |
+| Folding-style demo (trunk + diffusion + confidence) | `fold_demo` / `boltzcpp_fold` | ✅ runs on real 1brs.cif (synthetic weights; simplified atom featurization) |
+| Design end-to-end + real-weight folding/affinity | — | ❌ (needs atom featurizer + weights) |
 
 ## What "runs" today
 `boltzcpp_ifold <model.gguf> example/inverse_folding/1brs.cif A` parses the real

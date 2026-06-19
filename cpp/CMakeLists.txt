@@ -133,3 +133,10 @@ if(PYTHON3)
                     --out ${CMAKE_CURRENT_BINARY_DIR}/ifold_out.cif)
     endif()
 endif()
+
+# --- folding-style demonstration (trunk + diffusion + confidence) ------------
+add_executable(boltzcpp_fold src/fold_demo.cpp)
+target_link_libraries(boltzcpp_fold PRIVATE boltzcpp)
+add_test(NAME fold_example_1brs
+    COMMAND boltzcpp_fold ${CMAKE_CURRENT_SOURCE_DIR}/../example/inverse_folding/1brs.cif A
+            --out ${CMAKE_CURRENT_BINARY_DIR}/fold_out.cif)
