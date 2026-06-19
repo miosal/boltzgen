@@ -54,6 +54,7 @@ add_library(boltzcpp STATIC
     src/triangle_attention.cpp
     src/pairformer.cpp
     src/mmcif_writer.cpp
+    src/trunk.cpp
 )
 target_include_directories(boltzcpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(boltzcpp PUBLIC ggml)
@@ -89,6 +90,7 @@ boltz_add_test(test_outer_product_mean)
 boltz_add_test(test_triangle_attention)
 boltz_add_test(test_pairformer)
 boltz_add_test(test_mmcif_writer)
+boltz_add_test(test_trunk)
 
 # Cross-language test needs to know where the python tools live.
 target_compile_definitions(test_python_gguf PRIVATE

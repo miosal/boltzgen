@@ -6,7 +6,7 @@ analytic values) on the ggml CPU backend. No trained weights are present in the
 build environment, so nothing here is yet checked for *numeric parity with the
 real model* — that requires the checkpoints (see "Blockers").
 
-## Test suites (18 ctest cases, all passing)
+## Test suites (19 ctest cases, all passing)
 Run: `cmake -S cpp -B cpp/build && cmake --build cpp/build && ctest --test-dir cpp/build`
 
 ## Component map
@@ -31,7 +31,8 @@ Run: `cmake -S cpp -B cpp/build && cmake --build cpp/build && ctest --test-dir c
 | `outer_product_mean.OuterProductMean` | `outer_product_mean` | ✅ validated (wiring) |
 | `triangular_attention` (start/end node) | `triangle_attention` | ✅ wiring-validated (AF2 bias broadcasting documented; needs golden-tensor parity) |
 | Pairformer block | `pairformer` | ✅ wiring-validated (block vs op composition) |
-| MSA module / full trunk (stack of blocks) | — | ❌ not assembled |
+| Full Pairformer trunk (stack of blocks) + distogram head | `trunk` | ✅ validated |
+| MSA module | — | ❌ |
 | Diffusion module (atom enc/dec, diffusion transformer) + sampler loop | partial (`diffusion_schedule`) | ❌ network not ported |
 | Confidence / Affinity heads | — | ❌ |
 | Full atom featurizer (tokenizer, atom feats, distogram, MSA) | partial (`cif`, `gaussian_smearing`) | ❌ |
