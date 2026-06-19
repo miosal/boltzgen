@@ -97,6 +97,7 @@ boltz_add_test(test_trunk)
 boltz_add_test(test_diffusion_blocks)
 boltz_add_test(test_diffusion_transformer)
 boltz_add_test(test_diffusion_sampler)
+boltz_add_test(test_diffusion_pipeline)
 
 # Cross-language test needs to know where the python tools live.
 target_compile_definitions(test_python_gguf PRIVATE
