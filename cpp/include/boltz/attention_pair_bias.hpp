@@ -15,6 +15,10 @@ struct AttnPairBiasWeights {
     int c_s = 0;     // single dim
     int c_z = 0;     // pair dim
     int num_heads = 0;
+    // If false (diffusion transformer), `z` is the per-head bias directly
+    // ([N*N*num_heads]) and z_norm/z_lin are unused. If true (trunk), the bias
+    // is computed from the pair rep z ([N*N*c_z]) via z_norm -> z_lin.
+    bool compute_pair_bias = true;
     std::vector<float> q_w, q_b;          // proj_q [c_s,c_s] + bias
     std::vector<float> k_w;               // proj_k [c_s,c_s] (no bias)
     std::vector<float> v_w;               // proj_v [c_s,c_s]

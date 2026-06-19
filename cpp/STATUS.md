@@ -6,7 +6,7 @@ analytic values) on the ggml CPU backend. No trained weights are present in the
 build environment, so nothing here is yet checked for *numeric parity with the
 real model* — that requires the checkpoints (see "Blockers").
 
-## Test suites (20 ctest cases, all passing)
+## Test suites (21 ctest cases, all passing)
 Run: `cmake -S cpp -B cpp/build && cmake --build cpp/build && ctest --test-dir cpp/build`
 
 ## Component map

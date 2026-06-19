@@ -49,14 +49,19 @@ std::vector<float> attention_pair_bias(const std::vector<float>& s,
         for (int d = 0; d < c_s; ++d) g[i * c_s + d] = sigmoidf(g[i * c_s + d]);
     }
 
-    // Pair bias: LayerNorm(c_z) -> Linear(c_z -> H). bias[i][j][h].
+    // Pair bias bias[i][j][h]: either computed from z (trunk) or z is already
+    // the per-head bias (diffusion transformer).
     std::vector<float> bias((size_t)N * N * H);
-    std::vector<float> zn(c_z);
-    for (int i = 0; i < N; ++i)
-        for (int j = 0; j < N; ++j) {
-            layer_norm(&z[(i * N + j) * c_z], c_z, w.z_norm_w, w.z_norm_b, zn.data());
-            linear(zn.data(), c_z, H, w.z_lin_w, nullptr, &bias[(i * N + j) * H]);
-        }
+    if (w.compute_pair_bias) {
+        std::vector<float> zn(c_z);
+        for (int i = 0; i < N; ++i)
+            for (int j = 0; j < N; ++j) {
+                layer_norm(&z[(i * N + j) * c_z], c_z, w.z_norm_w, w.z_norm_b, zn.data());
+                linear(zn.data(), c_z, H, w.z_lin_w, nullptr, &bias[(i * N + j) * H]);
+            }
+    } else {
+        for (size_t i = 0; i < bias.size(); ++i) bias[i] = z[i];
+    }
 
     // Per-head attention.
     std::vector<float> o((size_t)N * c_s, 0.0f);
