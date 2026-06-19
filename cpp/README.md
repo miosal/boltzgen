@@ -37,11 +37,19 @@ cmake -S cpp -B cpp/build -DBOLTZCPP_VULKAN=ON
       `convert_ckpt_to_gguf.py`; output format validated end-to-end by the
       cross-language round-trip test (`test_python_gguf`). Running the actual
       conversion needs torch + the checkpoint.
-- [ ] Golden-tensor dumper (needs torch + checkpoint to run).
-- [ ] Inverse-folding encoder/decoder stack + autoregressive sampling.
+- [x] Hand-rolled mmCIF `_atom_site` parser (parses real `1brs.cif`) + tests.
+- [x] Inverse-folding model assembled end-to-end (CIF → KNN → embed → ggml
+      encoder stack → head → sequence) + pure-C++ pipeline test.
+- [x] `boltzcpp_ifold` CLI + synthetic-model generator; **runs on the real
+      `example/inverse_folding/1brs.cif`** as a ctest (`ifold_example_1brs`).
+- [ ] Golden-tensor dumper + real checkpoint conversion (needs torch + weights):
+      swap the synthetic gguf for the converted checkpoint to get meaningful
+      designs and to close the numeric match-vs-Python gate.
+- [ ] Faithful input embedder + autoregressive decoder (current driver uses a
+      simplified embedding + greedy head).
 - [ ] Pairformer trunk, diffusion module, folding/affinity (later phases).
 
-9 C++ test suites currently pass (`ctest`). Everything above the line is
+12 ctest cases currently pass, including running the inverse-folding example. Everything above the line is
 validated on the ggml **CPU** backend with no model weights, using
 equivalence-to-reference testing; matching the real trained checkpoints and
 running the end-to-end examples additionally needs the weights (and, for the

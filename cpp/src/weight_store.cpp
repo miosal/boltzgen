@@ -30,6 +30,15 @@ ggml_tensor* WeightStore::get(const std::string& name) const {
 
 bool WeightStore::has(const std::string& name) const { return try_get(name) != nullptr; }
 
+std::vector<float> WeightStore::data_f32(const std::string& name) const {
+    ggml_tensor* t = get(name);
+    if (t->type != GGML_TYPE_F32)
+        throw std::runtime_error("WeightStore: tensor '" + name + "' is not f32");
+    const int64_t n = ggml_nelements(t);
+    const float* d = ggml_get_data_f32(t);
+    return std::vector<float>(d, d + n);
+}
+
 int64_t WeightStore::n_tensors() const { return gguf_get_n_tensors(gguf_); }
 
 std::optional<std::string> WeightStore::meta_str(const std::string& key) const {

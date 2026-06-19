@@ -10,6 +10,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace boltz {
 
@@ -27,6 +28,9 @@ public:
     // Tensor by name or nullptr if absent.
     ggml_tensor* try_get(const std::string& name) const;
     bool has(const std::string& name) const;
+
+    // Copy a tensor's data out as a flat fp32 vector (row-major / ggml layout).
+    std::vector<float> data_f32(const std::string& name) const;
 
     int64_t n_tensors() const;
 
