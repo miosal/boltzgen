@@ -41,6 +41,7 @@ add_subdirectory(${_ggml_dir} EXCLUDE_FROM_ALL)
 add_library(boltzcpp STATIC
     src/residue_constraints.cpp
     src/diffusion_schedule.cpp
+    src/ggml_nn.cpp
 )
 target_include_directories(boltzcpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(boltzcpp PUBLIC ggml)
@@ -62,3 +63,4 @@ endfunction()
 boltz_add_test(test_residue_constraints)
 boltz_add_test(test_inverse_fold_constraint_masks)
 boltz_add_test(test_diffusion_schedule)
+boltz_add_test(test_ggml_nn)
