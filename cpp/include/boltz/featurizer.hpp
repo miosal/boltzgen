@@ -3,6 +3,7 @@
 // models, e.g. GaussianSmearing for edge distances in inverse folding.
 #pragma once
 
+#include <string>
 #include <vector>
 
 namespace boltz {
@@ -15,6 +16,24 @@ struct Matrix {
     float at(int r, int c) const { return data[r * cols + c]; }
     float& at(int r, int c) { return data[r * cols + c]; }
 };
+
+// Token-level features (the portable, non-chemistry part of
+// boltzgen.data.feature.featurizer.process_token_features). Built from a
+// chain's residues.
+struct TokenFeatures {
+    int n = 0;
+    int num_token_types = 0;          // 33
+    std::vector<float> res_type;       // [n * num_token_types] one-hot
+    std::vector<int> token_index;      // [n] 0..n-1
+    std::vector<int> residue_index;    // [n] (from seq_id)
+    std::vector<int> mol_type;         // [n]
+    std::vector<float> pad_mask;       // [n] (1 = present)
+};
+
+// Build token features from residue names + indices. comp_ids[i] is the residue
+// 3-letter name; seq_ids[i] its (CIF label) index.
+TokenFeatures token_features(const std::vector<std::string>& comp_ids,
+                             const std::vector<int>& seq_ids);
 
 // Port of boltzgen.model.modules.inverse_fold.GaussianSmearing.
 // offsets = linspace(start, stop, num_gaussians);

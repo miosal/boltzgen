@@ -41,7 +41,7 @@ Run: `cmake -S cpp -B cpp/build && cmake --build cpp/build && ctest --test-dir c
 | Confidence heads (pae/pde/plddt/resolved + aggregation) | `confidence` | ✅ validated |
 | Affinity head (cross-pair pool + ReLU MLPs) | `affinity` | ✅ validated |
 | Featurizer: RelativePositionEncoder (rel pos features) | `rel_pos` | ✅ validated |
-| Featurizer: token features (res-type one-hot, masks) | partial | ◐ |
+| Featurizer: token features (res-type one-hot, mol_type, masks) | `featurizer`/`const` | ✅ validated |
 | Featurizer: atom chemistry (RDKit conformers, CCD, MSA) | — | ❌ external (RDKit + mols data) |
 | mmCIF writer (output) | `mmcif_writer` | ✅ validated (write→parse round-trip) |
 | Folding-style demo (trunk + diffusion + confidence) | `fold_demo` / `boltzcpp_fold` | ✅ runs on real 1brs.cif (synthetic weights; simplified atom featurization) |
