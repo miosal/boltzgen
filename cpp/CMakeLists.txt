@@ -37,12 +37,26 @@ endif()
 add_subdirectory(${_ggml_dir} EXCLUDE_FROM_ALL)
 
 # --- boltzcpp engine library (hand-rolled) ------------------------------------
-# Sources are added incrementally as phases land. For now the library is just the
-# front-end/runtime skeleton; the smoke-test exe exercises the ggml wiring.
-add_library(boltzcpp INTERFACE)
-target_include_directories(boltzcpp INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(boltzcpp INTERFACE ggml)
+# Sources are added incrementally as phases land.
+add_library(boltzcpp STATIC
+    src/residue_constraints.cpp
+)
+target_include_directories(boltzcpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(boltzcpp PUBLIC ggml)
 
 # --- smoke test: proves ggml builds + runs on the CPU backend -----------------
 add_executable(boltzcpp_smoke src/smoke.cpp)
 target_link_libraries(boltzcpp_smoke PRIVATE boltzcpp)
+
+# --- unit tests (hand-rolled harness, analogous to the pytest suite) ----------
+enable_testing()
+
+function(boltz_add_test name)
+    add_executable(${name} tests/${name}.cpp)
+    target_include_directories(${name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+    target_link_libraries(${name} PRIVATE boltzcpp)
+    add_test(NAME ${name} COMMAND ${name})
+endfunction()
+
+boltz_add_test(test_residue_constraints)
+boltz_add_test(test_inverse_fold_constraint_masks)
