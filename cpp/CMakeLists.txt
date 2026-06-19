@@ -62,6 +62,7 @@ add_library(boltzcpp STATIC
     src/atom_transformer.cpp
     src/rel_pos.cpp
     src/atom_featurizer.cpp
+    src/input_embedder.cpp
     src/confidence.cpp
     src/affinity.cpp
 )
@@ -108,6 +109,7 @@ boltz_add_test(test_atom_windowing)
 boltz_add_test(test_atom_transformer)
 boltz_add_test(test_rel_pos)
 boltz_add_test(test_atom_featurizer)
+boltz_add_test(test_input_embedder)
 boltz_add_test(test_confidence)
 boltz_add_test(test_affinity)
 
