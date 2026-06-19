@@ -112,6 +112,7 @@ if(PYTHON3)
     if(_gen_rc EQUAL 0)
         add_test(NAME ifold_example_1brs
             COMMAND boltzcpp_ifold ${_synth_gguf}
-                    ${CMAKE_CURRENT_SOURCE_DIR}/../example/inverse_folding/1brs.cif A)
+                    ${CMAKE_CURRENT_SOURCE_DIR}/../example/inverse_folding/1brs.cif A
+                    --out ${CMAKE_CURRENT_BINARY_DIR}/ifold_out.cif)
     endif()
 endif()
