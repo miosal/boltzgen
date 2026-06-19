@@ -28,6 +28,20 @@ TokenFeatures token_features(const std::vector<std::string>& comp_ids,
     return f;
 }
 
+MsaFeatures single_sequence_msa_features(const std::vector<float>& res_type, int n,
+                                         int num_token_types) {
+    MsaFeatures m;
+    m.n = n;
+    m.num_token_types = num_token_types;
+    m.depth = 1;
+    m.msa = res_type;       // one row == the query one-hot
+    m.profile = res_type;   // single-sequence profile is the query one-hot
+    m.has_deletion.assign(n, 0.0f);
+    m.deletion_value.assign(n, 0.0f);
+    m.msa_mask.assign(n, 1.0f);
+    return m;
+}
+
 Matrix gaussian_smearing(const std::vector<float>& dist, float start, float stop,
                          int num_gaussians) {
     std::vector<float> offsets(num_gaussians);

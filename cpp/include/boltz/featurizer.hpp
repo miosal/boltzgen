@@ -35,6 +35,24 @@ struct TokenFeatures {
 TokenFeatures token_features(const std::vector<std::string>& comp_ids,
                              const std::vector<int>& seq_ids);
 
+// Single-sequence ("no MSA") features — the inference path when no MSA is
+// supplied (common for design). The MSA is just the query sequence: one row, a
+// one-hot profile, and zero deletions. Mirrors the dummy-MSA featurization.
+struct MsaFeatures {
+    int n = 0;
+    int num_token_types = 0;
+    int depth = 1;                  // one row (the query)
+    std::vector<float> msa;          // [depth*n*num_token_types] one-hot
+    std::vector<float> profile;      // [n*num_token_types] (== query one-hot)
+    std::vector<float> has_deletion; // [depth*n] = 0
+    std::vector<float> deletion_value; // [depth*n] = 0
+    std::vector<float> msa_mask;     // [depth*n] = 1
+};
+
+// `res_type` is the [n*num_token_types] one-hot from token_features.
+MsaFeatures single_sequence_msa_features(const std::vector<float>& res_type, int n,
+                                         int num_token_types);
+
 // Port of boltzgen.model.modules.inverse_fold.GaussianSmearing.
 // offsets = linspace(start, stop, num_gaussians);
 // coeff   = -0.5 / (offsets[1]-offsets[0])^2;

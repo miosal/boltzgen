@@ -64,6 +64,24 @@ BOLTZ_TEST(token_features_onehot_and_moltype) {
     expect_eq_i(f.residue_index[2], 10, "residue index from seq");
 }
 
+BOLTZ_TEST(single_sequence_msa) {
+    std::vector<std::string> comps = {"ALA", "GLY", "VAL"};
+    std::vector<int> seqs = {1, 2, 3};
+    auto tf = token_features(comps, seqs);
+    auto m = single_sequence_msa_features(tf.res_type, tf.n, tf.num_token_types);
+
+    expect_eq_i(m.depth, 1, "single row");
+    expect_eq_i(static_cast<long>(m.msa.size()), 3 * 33, "msa shape");
+    // Profile equals the query one-hot.
+    for (size_t i = 0; i < tf.res_type.size(); ++i) expect_eq_f(m.profile[i], tf.res_type[i], "profile==query");
+    // No deletions, full mask.
+    for (int i = 0; i < 3; ++i) {
+        expect_eq_f(m.has_deletion[i], 0.0f, "no deletion");
+        expect_eq_f(m.deletion_value[i], 0.0f, "zero deletion value");
+        expect_eq_f(m.msa_mask[i], 1.0f, "mask 1");
+    }
+}
+
 int main() {
     std::printf("== test_featurizer ==\n");
     return boltztest::run_all();
