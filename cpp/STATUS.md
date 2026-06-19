@@ -29,8 +29,9 @@ Run: `cmake -S cpp -B cpp/build && cmake --build cpp/build && ctest --test-dir c
 | `triangular.TriangleMultiplication` (out/in) | `triangle_mult` | ✅ validated (wiring); needs golden-tensor parity check |
 | `attention.AttentionPairBias` | `attention_pair_bias` | ✅ validated (wiring) |
 | `outer_product_mean.OuterProductMean` | `outer_product_mean` | ✅ validated (wiring) |
-| `triangular_attention` (start/end node) | — | ❌ not ported — AF2 bias broadcasting needs golden tensors to port confidently |
-| Pairformer block / MSA module / trunk assembly | — | ❌ not assembled |
+| `triangular_attention` (start/end node) | `triangle_attention` | ✅ wiring-validated (AF2 bias broadcasting documented; needs golden-tensor parity) |
+| Pairformer block | `pairformer` | ✅ wiring-validated (block vs op composition) |
+| MSA module / full trunk (stack of blocks) | — | ❌ not assembled |
 | Diffusion module (atom enc/dec, diffusion transformer) + sampler loop | partial (`diffusion_schedule`) | ❌ network not ported |
 | Confidence / Affinity heads | — | ❌ |
 | Full atom featurizer (tokenizer, atom feats, distogram, MSA) | partial (`cif`, `gaussian_smearing`) | ❌ |
