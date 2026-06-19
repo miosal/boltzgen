@@ -124,7 +124,6 @@ RealEncoderOut run_real_encoder(const RealIFoldModel& m,
                                 const std::vector<float>& pair_input,
                                 const std::vector<int>& src,
                                 const std::vector<int>& dst, int N) {
-    const RealIFoldConfig& c = m.cfg;
     std::vector<float> s = linear_batch(m.linear_token_to_node, s_inputs, N);
     const int E = static_cast<int>(src.size());
     std::vector<float> z = linear_batch(m.linear_token_to_pair, pair_input, E);
@@ -133,7 +132,6 @@ RealEncoderOut run_real_encoder(const RealIFoldModel& m,
         s = std::move(st.s);
         z = std::move(st.z);
     }
-    (void)c;
     return {std::move(s), std::move(z)};
 }
 

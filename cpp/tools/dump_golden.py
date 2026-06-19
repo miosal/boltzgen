@@ -195,7 +195,7 @@ def dump_ifold(args, sd):
         node_dim=node_dim, pair_dim=pair_dim, hidden_dim=node_dim,
         dropout=0.0, softmax_dropout=0.0, num_encoder_layers=n_enc,
         num_heads=num_heads, topk=args.k, enable_input_embedder=True)
-    miss = enc.load_state_dict(_subdict(sd, "inverse_folding_encoder."), strict=True)
+    enc.load_state_dict(_subdict(sd, "inverse_folding_encoder."), strict=True)
     enc.eval()
 
     dec = InverseFoldingDecoder(
