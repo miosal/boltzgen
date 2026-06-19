@@ -182,11 +182,26 @@ int main(int argc, char** argv) {
     auto randn = [&]() { st = st * 1664525u + 1013904223u; return static_cast<float>(st >> 9) / 8388608.0f - 1.0f; };
     auto refined = sample_diffusion(sigmas, N, tmask, denoise, randn, SamplerParams{});
 
+    // --- affinity head (designate the last 8 residues as a pseudo-ligand) ---
+    auto mk_linb = [](int in, int out, float s) {
+        LinearB L; L.in = in; L.out = out; L.w = fv(in * out, s); L.b = fv(out, s + 0.5f); return L;
+    };
+    AffinityWeights aw; aw.token_z = tz; aw.token_s = ts;
+    aw.out_l1 = mk_linb(tz, tz, 30); aw.out_l2 = mk_linb(tz, ts, 31);
+    aw.val_l1 = mk_linb(ts, ts, 32); aw.val_l2 = mk_linb(ts, ts, 33); aw.val_l3 = mk_linb(ts, 1, 34);
+    aw.sco_l1 = mk_linb(ts, ts, 35); aw.sco_l2 = mk_linb(ts, ts, 36); aw.sco_l3 = mk_linb(ts, 1, 37);
+    aw.binary = mk_linb(1, 1, 38);
+    std::vector<float> lig_mask(N, 0.0f), rec_mask(N, 0.0f);
+    for (int i = 0; i < N; ++i) (i >= N - 8 ? lig_mask : rec_mask)[i] = 1.0f;
+    auto aff = affinity_head(trunk.z, lig_mask, rec_mask, N, aw);
+
     std::printf("structure : %s  chain %s (%d residues)\n", cif.c_str(), chain.c_str(), N);
     std::printf("trunk     : token_s=%d token_z=%d blocks=%d\n", ts, tz, num_blocks);
     std::printf("distogram : %d x %d x %d bins\n", N, N, dist_bins);
     std::printf("mean pLDDT: %.3f (synthetic weights)\n", mean_plddt);
     std::printf("diffusion : %d steps, refined %d atom coords\n", (int)sigmas.size() - 1, N);
+    std::printf("affinity  : value=%.3f score=%.3f binary_logit=%.3f (pseudo-ligand, synthetic)\n",
+                aff.pred_value, aff.pred_score, aff.logits_binary);
 
     if (!out_path.empty()) {
         std::vector<CifAtom> out_atoms;
