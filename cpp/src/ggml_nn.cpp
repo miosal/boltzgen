@@ -23,6 +23,17 @@ ggml_tensor* gelu(ggml_context* ctx, ggml_tensor* x) {
     return ggml_gelu_erf(ctx, x);
 }
 
+ggml_tensor* silu(ggml_context* ctx, ggml_tensor* x) { return ggml_silu(ctx, x); }
+
+ggml_tensor* transition(ggml_context* ctx, ggml_tensor* x, ggml_tensor* norm_w,
+                        ggml_tensor* norm_b, ggml_tensor* fc1, ggml_tensor* fc2,
+                        ggml_tensor* fc3, float eps) {
+    ggml_tensor* n = layer_norm(ctx, x, norm_w, norm_b, eps);
+    ggml_tensor* h = ggml_mul(ctx, ggml_silu(ctx, ggml_mul_mat(ctx, fc1, n)),
+                              ggml_mul_mat(ctx, fc2, n));
+    return ggml_mul_mat(ctx, fc3, h);
+}
+
 ggml_tensor* affine(ggml_context* ctx, ggml_tensor* x, ggml_tensor* scale,
                     ggml_tensor* shift) {
     return ggml_add(ctx, ggml_mul(ctx, x, scale), shift);

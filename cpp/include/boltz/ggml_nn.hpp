@@ -24,6 +24,16 @@ ggml_tensor* layer_norm(ggml_context* ctx, ggml_tensor* x, ggml_tensor* w,
 // Exact (erf) GELU — matches torch.nn.GELU() default.
 ggml_tensor* gelu(ggml_context* ctx, ggml_tensor* x);
 
+// SiLU / swish — matches torch.nn.SiLU().
+ggml_tensor* silu(ggml_context* ctx, ggml_tensor* x);
+
+// SwiGLU Transition block (boltzgen.model.layers.transition.Transition):
+//   x = norm(x); out = fc3( silu(fc1(x)) * fc2(x) ).  All Linears are bias-free.
+// fc1/fc2 have ne=[dim, hidden]; fc3 has ne=[hidden, out].
+ggml_tensor* transition(ggml_context* ctx, ggml_tensor* x, ggml_tensor* norm_w,
+                        ggml_tensor* norm_b, ggml_tensor* fc1, ggml_tensor* fc2,
+                        ggml_tensor* fc3, float eps = 1e-5f);
+
 // y = x * scale + shift, broadcast over ne0 (scale/shift have ne = [features]).
 ggml_tensor* affine(ggml_context* ctx, ggml_tensor* x, ggml_tensor* scale,
                     ggml_tensor* shift);

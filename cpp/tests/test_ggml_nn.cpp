@@ -174,6 +174,47 @@ BOLTZ_TEST(batchnorm_fold_and_affine) {
     }
 }
 
+// SwiGLU Transition block: ggml graph vs scalar reference.
+BOLTZ_TEST(transition_matches_reference) {
+    Ctx c;
+    const int dim = 3, hidden = 4, out = 3;
+    ggml_tensor* x = ggml_new_tensor_1d(c.ctx, GGML_TYPE_F32, dim);
+    ggml_tensor* nw = ggml_new_tensor_1d(c.ctx, GGML_TYPE_F32, dim);
+    ggml_tensor* nb = ggml_new_tensor_1d(c.ctx, GGML_TYPE_F32, dim);
+    ggml_tensor* fc1 = ggml_new_tensor_2d(c.ctx, GGML_TYPE_F32, dim, hidden);
+    ggml_tensor* fc2 = ggml_new_tensor_2d(c.ctx, GGML_TYPE_F32, dim, hidden);
+    ggml_tensor* fc3 = ggml_new_tensor_2d(c.ctx, GGML_TYPE_F32, hidden, out);
+
+    std::vector<float> xv = {0.5f, -1.0f, 2.0f};
+    std::vector<float> nwv = {1.0f, 1.0f, 1.0f}, nbv = {0, 0, 0};
+    std::vector<float> f1(dim * hidden), f2(dim * hidden), f3(hidden * out);
+    for (int i = 0; i < dim * hidden; ++i) { f1[i] = 0.1f * std::sin(i + 1); f2[i] = 0.1f * std::cos(i + 2); }
+    for (int i = 0; i < hidden * out; ++i) f3[i] = 0.1f * std::sin(i + 3);
+    set(x, xv); set(nw, nwv); set(nb, nbv); set(fc1, f1); set(fc2, f2); set(fc3, f3);
+
+    ggml_tensor* y = boltz::nn::transition(c.ctx, x, nw, nb, fc1, fc2, fc3, 1e-5f);
+    compute(c.ctx, y);
+
+    // Reference.
+    float mean = 0; for (float v : xv) mean += v; mean /= dim;
+    float var = 0; for (float v : xv) var += (v - mean) * (v - mean); var /= dim;
+    float inv = 1.0f / std::sqrt(var + 1e-5f);
+    std::vector<float> n(dim);
+    for (int d = 0; d < dim; ++d) n[d] = (xv[d] - mean) * inv;
+    std::vector<float> h(hidden);
+    auto silu = [](float v) { return v / (1.0f + std::exp(-v)); };
+    for (int o = 0; o < hidden; ++o) {
+        float a = 0, b = 0;
+        for (int i = 0; i < dim; ++i) { a += f1[o * dim + i] * n[i]; b += f2[o * dim + i] * n[i]; }
+        h[o] = silu(a) * b;
+    }
+    std::vector<float> yr(out);
+    for (int o = 0; o < out; ++o) { float s = 0; for (int i = 0; i < hidden; ++i) s += f3[o * hidden + i] * h[i]; yr[o] = s; }
+
+    const float* yd = ggml_get_data_f32(y);
+    for (int o = 0; o < out; ++o) expect_eq_f(yd[o], yr[o], "transition");
+}
+
 int main() {
     std::printf("== test_ggml_nn ==\n");
     return boltztest::run_all();
