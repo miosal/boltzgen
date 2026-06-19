@@ -36,4 +36,9 @@ std::vector<float> conditioned_transition_block(const std::vector<float>& a,
                                                 const std::vector<float>& s,
                                                 const ConditionedTransitionWeights& w);
 
+// FourierEmbedding (Algorithm 22): out[d] = cos(2*pi*(bias[d] + t*weight[d])).
+// weight/bias are [dim]. Returns [dim] for a single time `t`.
+std::vector<float> fourier_embedding(float t, const std::vector<float>& weight,
+                                     const std::vector<float>& bias);
+
 }  // namespace boltz

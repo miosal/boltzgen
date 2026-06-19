@@ -73,4 +73,13 @@ std::vector<float> conditioned_transition_block(const std::vector<float>& a,
     return out;
 }
 
+std::vector<float> fourier_embedding(float t, const std::vector<float>& weight,
+                                     const std::vector<float>& bias) {
+    const float two_pi = 6.283185307179586f;
+    std::vector<float> out(weight.size());
+    for (size_t d = 0; d < weight.size(); ++d)
+        out[d] = std::cos(two_pi * (bias[d] + t * weight[d]));
+    return out;
+}
+
 }  // namespace boltz

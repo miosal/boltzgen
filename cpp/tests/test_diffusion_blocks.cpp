@@ -85,6 +85,15 @@ BOLTZ_TEST(conditioned_transition_matches_reference) {
     for (int d = 0; d < dim; ++d) expect_eq_f(got[d], sig(op[d]) * bta[d], "cond transition");
 }
 
+BOLTZ_TEST(fourier_embedding_matches_reference) {
+    std::vector<float> weight = {0.5f, -1.0f, 2.0f}, bias = {0.1f, 0.2f, -0.3f};
+    const float t = 0.7f;
+    auto got = fourier_embedding(t, weight, bias);
+    const float two_pi = 6.283185307179586f;
+    for (int d = 0; d < 3; ++d)
+        expect_eq_f(got[d], std::cos(two_pi * (bias[d] + t * weight[d])), "fourier");
+}
+
 int main() {
     std::printf("== test_diffusion_blocks ==\n");
     return boltztest::run_all();
