@@ -143,6 +143,37 @@ BOLTZ_TEST(mlp_block_matches_reference) {
     for (int o = 0; o < out; ++o) expect_eq_f(yd[o], yr[o], "mlp out");
 }
 
+// BatchNorm1d eval-mode, folded to scale/shift and applied via affine, checked
+// against the direct (x-mean)/sqrt(var+eps)*gamma+beta formula.
+BOLTZ_TEST(batchnorm_fold_and_affine) {
+    std::vector<float> mean = {0.5f, -1.0f, 2.0f};
+    std::vector<float> var = {1.0f, 4.0f, 0.25f};
+    std::vector<float> gamma = {2.0f, 1.0f, -1.0f};
+    std::vector<float> beta = {0.1f, 0.2f, -0.3f};
+    const float eps = 1e-5f;
+
+    auto folded = boltz::nn::fold_batchnorm(mean, var, gamma, beta, eps);
+
+    Ctx c;
+    const int f = 3;
+    ggml_tensor* x = ggml_new_tensor_1d(c.ctx, GGML_TYPE_F32, f);
+    ggml_tensor* scale = ggml_new_tensor_1d(c.ctx, GGML_TYPE_F32, f);
+    ggml_tensor* shift = ggml_new_tensor_1d(c.ctx, GGML_TYPE_F32, f);
+    std::vector<float> xv = {1.0f, 0.0f, 2.5f};
+    set(x, xv);
+    set(scale, folded.scale);
+    set(shift, folded.shift);
+
+    ggml_tensor* y = boltz::nn::affine(c.ctx, x, scale, shift);
+    compute(c.ctx, y);
+
+    const float* yd = ggml_get_data_f32(y);
+    for (int i = 0; i < f; ++i) {
+        float ref = (xv[i] - mean[i]) / std::sqrt(var[i] + eps) * gamma[i] + beta[i];
+        expect_eq_f(yd[i], ref, "batchnorm eval");
+    }
+}
+
 int main() {
     std::printf("== test_ggml_nn ==\n");
     return boltztest::run_all();

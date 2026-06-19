@@ -6,6 +6,8 @@
 
 #include "ggml.h"
 
+#include <vector>
+
 namespace boltz {
 namespace nn {
 
@@ -21,6 +23,23 @@ ggml_tensor* layer_norm(ggml_context* ctx, ggml_tensor* x, ggml_tensor* w,
 
 // Exact (erf) GELU — matches torch.nn.GELU() default.
 ggml_tensor* gelu(ggml_context* ctx, ggml_tensor* x);
+
+// y = x * scale + shift, broadcast over ne0 (scale/shift have ne = [features]).
+ggml_tensor* affine(ggml_context* ctx, ggml_tensor* x, ggml_tensor* scale,
+                    ggml_tensor* shift);
+
+// Fold BatchNorm1d eval-mode params (running_mean/var + affine weight/bias) into
+// a single per-feature scale/shift so inference is one `affine` op — the
+// standard approach for a backend-portable graph. Mirrors:
+//   y = (x - mean)/sqrt(var+eps) * gamma + beta
+//     = x * (gamma/sqrt(var+eps)) + (beta - mean*gamma/sqrt(var+eps)).
+struct FoldedAffine {
+    std::vector<float> scale;
+    std::vector<float> shift;
+};
+FoldedAffine fold_batchnorm(const std::vector<float>& mean, const std::vector<float>& var,
+                            const std::vector<float>& gamma, const std::vector<float>& beta,
+                            float eps = 1e-5f);
 
 }  // namespace nn
 }  // namespace boltz

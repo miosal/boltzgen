@@ -24,7 +24,25 @@ cmake -S cpp -B cpp/build -DBOLTZCPP_VULKAN=ON
 
 ## Status
 - [x] Scaffold: ggml submodule, plain CMake, CPU smoke test (`src/smoke.cpp`).
-- [ ] everything below.
+- [x] Residue-constraint logic + tests (ports `tests/test_residue_constraints.py`,
+      `tests/test_inverse_fold_constraint_masks.py`).
+- [x] Diffusion noise schedule + Karras preconditioning + tests.
+- [x] ggml nn primitives: linear, layernorm, gelu(erf), affine/folded-batchnorm
+      + equivalence tests on the CPU backend.
+- [x] Gaussian distance smearing featurizer + tests.
+- [x] gguf `WeightStore` + round-trip test (weight-loading plumbing).
+- [x] GNN scatter ops (sum/max/softmax) + KNN graph builder + tests.
+- [ ] Offline `tools/convert_ckpt_to_gguf.py` + golden-tensor dumper (needs the
+      real checkpoint + a torch env to run/validate).
+- [ ] `MLPAttnGNN` forward assembled from the above (ggml graph + scatter).
+- [ ] Inverse-folding encoder/decoder + autoregressive sampling.
+- [ ] Pairformer trunk, diffusion module, folding/affinity (later phases).
+
+7 C++ test suites currently pass (`ctest`). Everything above the line is
+validated on the ggml **CPU** backend with no model weights, using
+equivalence-to-reference testing; matching the real trained checkpoints and
+running the end-to-end examples additionally needs the weights (and, for the
+Vulkan backend, a GPU + Vulkan SDK).
 
 ## Roadmap (see plan doc for full detail)
 
