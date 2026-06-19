@@ -60,6 +60,7 @@ add_library(boltzcpp STATIC
     src/diffusion_sampler.cpp
     src/atom_windowing.cpp
     src/confidence.cpp
+    src/affinity.cpp
 )
 target_include_directories(boltzcpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(boltzcpp PUBLIC ggml)
@@ -102,6 +103,7 @@ boltz_add_test(test_diffusion_sampler)
 boltz_add_test(test_diffusion_pipeline)
 boltz_add_test(test_atom_windowing)
 boltz_add_test(test_confidence)
+boltz_add_test(test_affinity)
 
 # Cross-language test needs to know where the python tools live.
 target_compile_definitions(test_python_gguf PRIVATE
