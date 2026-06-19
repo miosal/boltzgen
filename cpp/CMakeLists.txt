@@ -60,6 +60,7 @@ add_library(boltzcpp STATIC
     src/diffusion_sampler.cpp
     src/atom_windowing.cpp
     src/atom_transformer.cpp
+    src/rel_pos.cpp
     src/confidence.cpp
     src/affinity.cpp
 )
@@ -104,6 +105,7 @@ boltz_add_test(test_diffusion_sampler)
 boltz_add_test(test_diffusion_pipeline)
 boltz_add_test(test_atom_windowing)
 boltz_add_test(test_atom_transformer)
+boltz_add_test(test_rel_pos)
 boltz_add_test(test_confidence)
 boltz_add_test(test_affinity)
 
