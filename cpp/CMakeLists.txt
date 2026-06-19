@@ -72,3 +72,8 @@ boltz_add_test(test_featurizer)
 boltz_add_test(test_weight_store)
 boltz_add_test(test_gnn)
 boltz_add_test(test_gnn_layer)
+boltz_add_test(test_python_gguf)
+
+# Cross-language test needs to know where the python tools live.
+target_compile_definitions(test_python_gguf PRIVATE
+    BOLTZ_TOOLS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tools")

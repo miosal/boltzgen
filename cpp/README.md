@@ -32,13 +32,16 @@ cmake -S cpp -B cpp/build -DBOLTZCPP_VULKAN=ON
 - [x] Gaussian distance smearing featurizer + tests.
 - [x] gguf `WeightStore` + round-trip test (weight-loading plumbing).
 - [x] GNN scatter ops (sum/max/softmax) + KNN graph builder + tests.
-- [ ] Offline `tools/convert_ckpt_to_gguf.py` + golden-tensor dumper (needs the
-      real checkpoint + a torch env to run/validate).
-- [ ] `MLPAttnGNN` forward assembled from the above (ggml graph + scatter).
-- [ ] Inverse-folding encoder/decoder + autoregressive sampling.
+- [x] `MLPAttnGNN` encoder layer (ggml MLPs + C++ scatter) + equivalence test.
+- [x] Hand-rolled, dependency-free GGUF writer (`tools/gguf_writer.py`) +
+      `convert_ckpt_to_gguf.py`; output format validated end-to-end by the
+      cross-language round-trip test (`test_python_gguf`). Running the actual
+      conversion needs torch + the checkpoint.
+- [ ] Golden-tensor dumper (needs torch + checkpoint to run).
+- [ ] Inverse-folding encoder/decoder stack + autoregressive sampling.
 - [ ] Pairformer trunk, diffusion module, folding/affinity (later phases).
 
-7 C++ test suites currently pass (`ctest`). Everything above the line is
+9 C++ test suites currently pass (`ctest`). Everything above the line is
 validated on the ggml **CPU** backend with no model weights, using
 equivalence-to-reference testing; matching the real trained checkpoints and
 running the end-to-end examples additionally needs the weights (and, for the
