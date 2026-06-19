@@ -64,6 +64,7 @@ add_library(boltzcpp STATIC
     src/atom_featurizer.cpp
     src/input_embedder.cpp
     src/smiles.cpp
+    src/conformer.cpp
     src/confidence.cpp
     src/affinity.cpp
 )
@@ -112,6 +113,7 @@ boltz_add_test(test_rel_pos)
 boltz_add_test(test_atom_featurizer)
 boltz_add_test(test_input_embedder)
 boltz_add_test(test_smiles)
+boltz_add_test(test_conformer)
 boltz_add_test(test_confidence)
 boltz_add_test(test_affinity)
 
