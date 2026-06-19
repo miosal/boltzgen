@@ -82,26 +82,57 @@ def _dump(out_dir, name, t):
               [float(x) for x in t.detach().to("cpu").reshape(-1).tolist()])
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("ckpt")
-    ap.add_argument("out_dir")
-    ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--n", type=int, default=24, help="number of nodes/residues")
-    ap.add_argument("--k", type=int, default=12, help="kNN neighbours per node")
-    ap.add_argument("--src", default=os.path.join(os.path.dirname(__file__), "..", ".."),
-                    help="repo root (for boltzgen on sys.path)")
-    args = ap.parse_args()
-    os.makedirs(args.out_dir, exist_ok=True)
+def dump_trimul(args, sd):
+    """Golden tensors for the Pairformer triangle-multiplication kernel (both
+    directions), from a design/folding checkpoint's first block. Validates the
+    signature custom kernel on real trained weights (the C++ counterpart is
+    boltz::triangle_multiplication)."""
+    import torch
+    from boltzgen.model.layers.triangular import (
+        TriangleMultiplicationOutgoing,
+        TriangleMultiplicationIncoming,
+    )
 
-    sys.path.insert(0, os.path.join(os.path.abspath(args.src), "src"))
+    base = args.trimul_prefix  # e.g. "pairformer_module.layers.0."
+    out_sd = _subdict(sd, base + "tri_mul_out.")
+    in_sd = _subdict(sd, base + "tri_mul_in.")
+    if not out_sd:
+        raise SystemExit(f"no tensors under '{base}tri_mul_out.' in checkpoint")
+    dim = out_sd["norm_in.weight"].shape[0]
+    print(f"trimul: dim={dim} prefix='{base}'")
+
+    out = TriangleMultiplicationOutgoing(dim=dim)
+    out.load_state_dict(out_sd, strict=True)
+    out.eval()
+    inc = TriangleMultiplicationIncoming(dim=dim)
+    inc.load_state_dict(in_sd, strict=True)
+    inc.eval()
+
+    torch.manual_seed(args.seed)
+    N = args.n
+    x = torch.randn(1, N, N, dim)
+    mask = (torch.rand(1, N, N) > 0.2).float()
+    with torch.no_grad():
+        y_out = out(x, mask)
+        y_in = inc(x, mask)
+
+    _dump(args.out_dir, "trimul_x", x[0])         # [N, N, dim]
+    _dump(args.out_dir, "trimul_mask", mask[0])   # [N, N]
+    _dump(args.out_dir, "trimul_out_outgoing", y_out[0])
+    _dump(args.out_dir, "trimul_out_incoming", y_in[0])
+    with open(os.path.join(args.out_dir, "trimul_meta.txt"), "w") as f:
+        f.write(f"N={N}\ndim={dim}\nprefix={base}\nseed={args.seed}\n")
+    print(f"wrote trimul fixtures to {args.out_dir} (N={N}, dim={dim})")
+    print(f"  outgoing: std={y_out.std():.4f}  incoming: std={y_in.std():.4f}")
+
+
+def dump_ifold(args, sd):
     import torch
     from boltzgen.model.modules.inverse_fold import (
         InverseFoldingEncoder,
         InverseFoldingDecoder,
     )
 
-    sd = _safe_torch_load(args.ckpt)
     sd = sd.get("state_dict", sd)
 
     # ---- infer dims from the trained tensors (no config needed) -------------
@@ -197,6 +228,33 @@ def main():
     print(f"  z_enc:  mean={z_enc.mean():.4f} std={z_enc.std():.4f}")
     print(f"  logits: mean={logits.mean():.4f} std={logits.std():.4f} "
           f"argmax(first 8)={logits[:8].argmax(-1).tolist()}")
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("ckpt")
+    ap.add_argument("out_dir")
+    ap.add_argument("--component", choices=["ifold", "trimul"], default="ifold",
+                    help="which model component to dump golden tensors for")
+    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--n", type=int, default=24,
+                    help="ifold: #nodes; trimul: pair grid size N")
+    ap.add_argument("--k", type=int, default=12, help="ifold: kNN neighbours per node")
+    ap.add_argument("--trimul-prefix", default="pairformer_module.layers.0.",
+                    help="state_dict prefix of the block whose tri_mul_{out,in} to dump")
+    ap.add_argument("--src", default=os.path.join(os.path.dirname(__file__), "..", ".."),
+                    help="repo root (for boltzgen on sys.path)")
+    args = ap.parse_args()
+    os.makedirs(args.out_dir, exist_ok=True)
+
+    sys.path.insert(0, os.path.join(os.path.abspath(args.src), "src"))
+    sd = _safe_torch_load(args.ckpt)
+    sd = sd.get("state_dict", sd)
+
+    if args.component == "ifold":
+        dump_ifold(args, sd)
+    else:
+        dump_trimul(args, sd)
 
 
 if __name__ == "__main__":

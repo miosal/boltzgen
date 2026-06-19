@@ -1,0 +1,4 @@
+N=10
+dim=128
+prefix=pairformer_module.layers.0.
+seed=0

@@ -20,6 +20,16 @@ from the reference (`tools/dump_golden.py`); see "Remaining gaps" for the parts
 NOT yet covered (the upstream InputEmbedder, the hand-rolled featurizer wiring to
 real data, and the stochastic autoregressive sampler).
 
+**Trained-weight parity also extends to the Pairformer triangle-multiplication
+kernel (design/folding trunk).** `test_parity` additionally loads one Pairformer
+block extracted from the 2 GB design checkpoint (`boltzgen1_diverse.ckpt`, via
+`convert_ckpt_to_gguf.py --include pairformer_module.layers.0.`) and checks
+`boltz::triangle_multiplication` (outgoing + incoming) against the PyTorch
+`TriangleMultiplication{Outgoing,Incoming}` reference on the real weights:
+max_abs **4.3e-6 / 4.8e-6** (the scalar einsum path matches very tightly). This
+is the signature custom kernel shared by the design, folding and affinity trunks,
+so the convert→dump→parity flow is shown to extend to those checkpoints.
+
 ## Test suites (37 ctest cases, all passing; 5 example pipelines run)
 Run: `cmake -S cpp -B cpp/build && cmake --build cpp/build && ctest --test-dir cpp/build`
 
@@ -39,6 +49,7 @@ Run: `cmake -S cpp -B cpp/build && cmake --build cpp/build && ctest --test-dir c
 | gguf weight load | `weight_store` | ✅ validated (round-trip) |
 | `.ckpt → .gguf` converter | `tools/convert_ckpt_to_gguf.py` | ✅ converts the real `boltzgen1_ifold.ckpt` (loads w/o omegaconf via a permissive unpickler; shortens names < ggml's 64-char limit; drops unused input_embedder) |
 | **Inverse-fold encoder+decoder, REAL trained weights** | `ifold_real` + `test_parity` | ✅ **numeric parity vs PyTorch** on `boltzgen1_ifold.ckpt` (see header for measured diffs; argmax exact) |
+| **Triangle multiplication (Pairformer trunk), REAL weights** | `triangle_mult` + `test_parity` | ✅ **numeric parity vs PyTorch** on `boltzgen1_diverse.ckpt` layer-0 tri_mul (max_abs ~4e-6, both directions) |
 | mmCIF `_atom_site` read | `cif` | ✅ validated (parses real 1brs.cif) |
 | Inverse-folding model end-to-end (demo) | `ifold_model` + `boltzcpp_ifold` | ✅ runs on real example (`ifold_example_1brs`); **simplified** embedder + greedy head on synthetic weights (the real-weight path is `ifold_real`, above) |
 | `triangular.TriangleMultiplication` (out/in) | `triangle_mult` | ✅ validated (wiring); needs golden-tensor parity check |
@@ -115,11 +126,15 @@ weights*, and for the other models:
    designed sequence end to end. (The featurizer/atom-embedder algorithms are
    already written and unit-tested on synthetic weights; this is integration +
    the larger InputEmbedder weight port, not new algorithms.)
-2. **Other 4 checkpoints (design/fold/affinity).** `convert_ckpt_to_gguf.py` now
-   loads real Lightning checkpoints; extend the `ifold_real`-style real-weight
-   wiring + golden dumps to the Pairformer trunk / diffusion / confidence /
-   affinity to get parity there too (larger; the long-name shortening rule in the
-   converter will need per-arch entries).
+2. **Rest of the design/fold/affinity trunks.** `convert_ckpt_to_gguf.py` loads
+   the real 2 GB Lightning checkpoints (`--include` extracts a component to keep
+   names < ggml's 64-char limit) and the triangle-multiplication kernel now has
+   trained-weight parity (above). Remaining for a full trunk: the same
+   convert→dump→parity wiring for triangle attention, pair-bias attention,
+   outer-product-mean and the transitions, then assembling the 64-block Pairformer
+   + recycling + distogram head (and the diffusion/confidence/affinity heads). The
+   ops are already written + unit-tested on synthetic weights; this is real-weight
+   wiring + golden dumps + assembly, not new algorithms.
 2. **Real MSA database + CCD/mols data.** Also HF-only. The per-alignment MSA
    featurization and ligand topology/conformer logic are written; pulling the
    reference *databases* is data-gated. The conformer generator is an

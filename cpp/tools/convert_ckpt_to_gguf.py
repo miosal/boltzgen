@@ -91,6 +91,11 @@ def main():
     ap.add_argument("out")
     ap.add_argument("--arch", default="boltzgen")
     ap.add_argument("--ema", action="store_true")
+    ap.add_argument(
+        "--include", nargs="+", default=None,
+        help="If given, only convert tensors whose (renamed) name starts with one "
+        "of these prefixes. Useful to extract a single component (e.g. one "
+        "Pairformer block) from a multi-GB checkpoint for a focused parity test.")
     args = ap.parse_args()
 
     import torch  # imported lazily so format-only usage needs no torch
@@ -119,7 +124,8 @@ def main():
     n_written = 0
     n_skipped = 0
     n_dropped = 0
-    too_long = []
+    n_toolong = 0
+    too_long_example = None
     for name, t in sd.items():
         if not torch.is_tensor(t) or not torch.is_floating_point(t):
             n_skipped += 1
@@ -128,22 +134,27 @@ def main():
         if out_name is None:
             n_dropped += 1
             continue
+        if args.include and not any(out_name.startswith(p) for p in args.include):
+            n_dropped += 1
+            continue
         if len(out_name) >= 64:
-            too_long.append(out_name)
+            # ggml's GGML_MAX_NAME is 64; such tensors can't be loaded. Skip them
+            # (a focused --include + per-arch rename keeps the needed names short).
+            n_toolong += 1
+            if too_long_example is None:
+                too_long_example = out_name
             continue
         t = t.detach().to(torch.float32).contiguous()
         ne_dims = list(reversed(list(t.shape))) if t.dim() > 0 else [1]
         w.add_tensor(out_name, ne_dims, t.view(-1).tolist())
         n_written += 1
 
-    if too_long:
-        raise SystemExit(
-            f"{len(too_long)} tensor name(s) exceed ggml's 64-char limit, e.g. "
-            f"'{too_long[0]}' ({len(too_long[0])} chars). Add a rename rule.")
-
     w.write(args.out)
-    print(f"wrote {n_written} tensors to {args.out} "
-          f"(skipped {n_skipped} non-float, dropped {n_dropped} unused)")
+    msg = (f"wrote {n_written} tensors to {args.out} "
+           f"(skipped {n_skipped} non-float, dropped {n_dropped} unused/filtered")
+    if n_toolong:
+        msg += f", skipped {n_toolong} over-64-char e.g. '{too_long_example}'"
+    print(msg + ")")
 
 
 if __name__ == "__main__":

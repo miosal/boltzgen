@@ -15,6 +15,7 @@
 // If they are absent the test SKIPS (data-gated), like the other example tests.
 #include "boltz/ifold_real.hpp"
 #include "boltz/npy.hpp"
+#include "boltz/triangle_mult.hpp"
 #include "boltz/weight_store.hpp"
 #include "test_framework.hpp"
 
@@ -31,6 +32,12 @@ using namespace boltztest;
 #endif
 #ifndef BOLTZ_PARITY_DIR
 #define BOLTZ_PARITY_DIR "golden_ifold"
+#endif
+#ifndef BOLTZ_PARITY_DESIGN_GGUF
+#define BOLTZ_PARITY_DESIGN_GGUF "boltzgen1_design_layer0.gguf"
+#endif
+#ifndef BOLTZ_PARITY_TRIMUL_DIR
+#define BOLTZ_PARITY_TRIMUL_DIR "golden_trimul"
 #endif
 
 namespace {
@@ -121,6 +128,57 @@ BOLTZ_TEST(ifold_real_weights_parity) {
     }
     std::printf("    decoder argmax mismatches: %d / %d positions\n", argmax_mismatch, N);
     expect_eq_i(argmax_mismatch, 0, "decoder per-position argmax matches reference");
+}
+
+namespace {
+TriMulWeights load_trimul(const WeightStore& ws, const std::string& p) {
+    TriMulWeights w;
+    w.norm_in_w = ws.data_f32(p + "norm_in.weight");
+    w.norm_in_b = ws.data_f32(p + "norm_in.bias");
+    w.p_in = ws.data_f32(p + "p_in.weight");
+    w.g_in = ws.data_f32(p + "g_in.weight");
+    w.norm_out_w = ws.data_f32(p + "norm_out.weight");
+    w.norm_out_b = ws.data_f32(p + "norm_out.bias");
+    w.p_out = ws.data_f32(p + "p_out.weight");
+    w.g_out = ws.data_f32(p + "g_out.weight");
+    w.dim = static_cast<int>(w.norm_in_w.size());
+    return w;
+}
+}  // namespace
+
+// Triangle-multiplication kernel parity on REAL design-checkpoint weights — the
+// signature Pairformer pair op, shared by the design/folding/affinity trunks.
+// Demonstrates the convert->dump->parity flow extending to a 2 GB checkpoint
+// (one block extracted via convert_ckpt_to_gguf.py --include).
+BOLTZ_TEST(trimul_real_weights_parity) {
+    const std::string gguf = BOLTZ_PARITY_DESIGN_GGUF;
+    const std::string dir = BOLTZ_PARITY_TRIMUL_DIR;
+    if (!file_exists(gguf) || !file_exists(dir + "/trimul_x.npy")) {
+        std::printf("    (skip: data-gated — design gguf/fixtures absent; see header)\n");
+        return;
+    }
+    WeightStore ws(gguf);
+    const std::string base = "pairformer_module.layers.0.";
+    TriMulWeights w_out = load_trimul(ws, base + "tri_mul_out.");
+    TriMulWeights w_in = load_trimul(ws, base + "tri_mul_in.");
+
+    NpyArray x = load_npy(dir + "/trimul_x.npy");           // [N, N, D]
+    NpyArray mask = load_npy(dir + "/trimul_mask.npy");     // [N, N]
+    NpyArray go = load_npy(dir + "/trimul_out_outgoing.npy");
+    NpyArray gi = load_npy(dir + "/trimul_out_incoming.npy");
+    const int N = static_cast<int>(x.shape[0]);
+    const int D = static_cast<int>(x.shape[2]);
+    std::printf("    trimul: N=%d D=%d\n", N, D);
+
+    std::vector<float> yo = triangle_multiplication(x.data, mask.data, N, D, w_out, false);
+    std::vector<float> yi = triangle_multiplication(x.data, mask.data, N, D, w_in, true);
+    DiffStats do_ = compare(wrap(yo, {N, N, D}), go);
+    DiffStats di_ = compare(wrap(yi, {N, N, D}), gi);
+    std::printf("    tri_mul_out: max_abs=%.3e mean_abs=%.3e\n", do_.max_abs, do_.mean_abs);
+    std::printf("    tri_mul_in : max_abs=%.3e mean_abs=%.3e\n", di_.max_abs, di_.mean_abs);
+    expect_true(do_.shapes_match && di_.shapes_match, "trimul shapes");
+    expect_true(do_.max_abs < 2e-3f, "tri_mul outgoing parity (max_abs < 2e-3)");
+    expect_true(di_.max_abs < 2e-3f, "tri_mul incoming parity (max_abs < 2e-3)");
 }
 
 int main() {
